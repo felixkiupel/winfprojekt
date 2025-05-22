@@ -227,3 +227,9 @@ analysis\_options.yaml
 **/.venv/
 env/
 ENV/
+
+# Python venv
+/backend/app/venv/
+# Byte-compiled
+**/__pycache__/
+*.py[cod]
