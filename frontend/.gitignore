@@ -1,45 +1,229 @@
-# Miscellaneous
-*.class
-*.log
-*.pyc
-*.swp
-.DS_Store
-.atom/
-.build/
-.buildlog/
-.history
-.svn/
-.swiftpm/
-migrate_working_dir/
+# ===============
 
-# IntelliJ related
-*.iml
-*.ipr
-*.iws
+# Root .gitignore
+
+# ===============
+
+# --------------------------------
+
+# Miscellaneous
+
+# --------------------------------
+
+\*.class
+\*.log
+\*.pyc
+\*.pyo
+\*.pyd
+\*.swp
+.DS\_Store
+ehthumbs.db
+Thumbs.db
+migrate\_working\_dir/
+
+# --------------------------------
+
+# JetBrains / IntelliJ / VSCode
+
+# --------------------------------
+
+# IntelliJ
+
+\*.iml
+\*.ipr
+\*.iws
 .idea/
 
-# The .vscode folder contains launch configuration and tasks you configure in
-# VS Code which you may wish to be included in version control, so this line
-# is commented out by default.
-#.vscode/
+# VSCode (uncomment if you want to ignore)
 
-# Flutter/Dart/Pub related
-**/doc/api/
-**/ios/Flutter/.last_build_id
-.dart_tool/
+# .vscode/
+
+# --------------------------------
+
+# Python Backend
+
+# --------------------------------
+
+# Byte-compiled / optimized / DLL files
+
+**pycache**/
+\*.egg-info/
+.eggs/
+\*.egg
+
+# Virtual environments
+
+venv/
+env/
+ENV/
+
+# Distribution / packaging
+
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+\*.manifest
+\*.spec
+
+# Installer logs
+
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Unit test / coverage reports
+
+htmlcov/
+.tox/
+.nox/
+.coverage
+.coverage.\*
+.cache
+nosetests.xml
+coverage.xml
+\*,cover
+
+# Jupyter Notebook
+
+.ipynb\_checkpoints/
+
+# PyInstaller
+
+# Usually these files are written by a python script from a template
+
+# before PyInstaller builds the exe, so as to inject date/other infos into it.
+
+\*.manifest
+\*.spec
+
+# Flask instance folder
+
+instance/
+.webassets-cache
+
+# --------------------------------
+
+# Flutter / Dart Frontend
+
+# --------------------------------
+
+# Flutter/Dart/Pub
+
+\*\*/doc/api/
+\*\*/ios/Flutter/.last\_build\_id
+.dart\_tool/
 .flutter-plugins
 .flutter-plugins-dependencies
+.packages
 .pub-cache/
 .pub/
-/build/
+build/
 
-# Symbolication related
-app.*.symbols
+# Generated plugin files
 
-# Obfuscation related
-app.*.map.json
+generated\_plugin\_registrant.dart
 
-# Android Studio will place build artifacts here
-/android/app/debug
-/android/app/profile
-/android/app/release
+# Crashlytics
+
+crashlytics.properties
+
+# --------------------------------
+
+# Android
+
+# --------------------------------
+
+# Gradle
+
+**/android/.gradle/
+**/android/app/build/
+!**/android/app/src/**
+\*\*/android/local.properties
+
+# Android Studio
+
+.idea/
+\*.iml
+
+# Signing keys
+
+\*.jks
+
+# Google Services
+
+\*\*/android/app/google-services.json
+
+# --------------------------------
+
+# iOS
+
+# --------------------------------
+
+\*\*/ios/Flutter/.last\_build\_id
+\*\*/ios/Pods/
+\*\*/ios/.symlinks/
+\*\*/ios/Runner.xcworkspace/
+\*\*/ios/build/
+\**/ios/Runner/GeneratedPluginRegistrant.*
+
+# Xcode
+
+\*.pbxuser
+!default.pbxuser
+\*.mode1v3
+!default.mode1v3
+\*.mode2v3
+!default.mode2v3
+\*.perspectivev3
+!default.perspectivev3
+xcuserdata/
+\*.xccheckout
+\*.xcscmblueprint
+\*.xcuserstate
+
+# --------------------------------
+
+# Desktop (macOS, Linux, Windows)
+
+# --------------------------------
+
+# macOS
+
+\*\*/macos/Flutter/ephemeral/
+\*\*/macos/Pods/
+\*\*/macos/Runner.xcworkspace/
+\*\*/macos/build/
+
+# Linux
+
+\*\*/linux/Flutter/ephemeral/
+\*\*/linux/build/
+
+# Windows
+
+\*\*/windows/Flutter/ephemeral/
+\*\*/windows/build/
+
+# --------------------------------
+
+# Other
+
+# --------------------------------
+
+pubspec.lock
+analysis\_options.yaml
+
+
+# Virtual environments
+**/venv/
+**/.venv/
+env/
+ENV/
