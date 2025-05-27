@@ -1,0 +1,8 @@
+{
+    "Test1": {
+        "first_name": "TestUser",
+        "surname": "TestUser",
+        "email": "Test@gmail.de",
+        "password": "Test1"
+    }
+}
