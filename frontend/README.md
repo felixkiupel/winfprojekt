@@ -1,16 +1,74 @@
-# frontend
 
-A new Flutter project.
+# MedApp – Community Health App
 
-## Getting Started
+Eine Flutter-App zur Unterstützung von Aboriginal & Torres Strait Islander Communities.  
+Sie bietet sichere Anmeldung, QR-basierte Registrierung, Community-Nachrichten und Push-Benachrichtigungen.
 
-This project is a starting point for a Flutter application.
+---
 
-A few resources to get you started if this is your first Flutter project:
+## ⚙️ Voraussetzungen & Setup
 
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
+### 📦 Flutter installieren
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+#### macOS / Linux / Windows:
+1. [Flutter SDK herunterladen](https://docs.flutter.dev/get-started/install)
+2. Entpacken und Pfad zur `flutter/bin` zu `PATH` hinzufügen
+3. Terminal öffnen und ausführen:
+   ```bash
+   flutter doctor
+   ```
+
+> Damit werden alle Systemabhängigkeiten (z. B. Android Studio, Xcode etc.) geprüft.
+
+---
+
+## 🚀 Projekt starten
+
+```bash
+flutter pub get          # Abhängigkeiten installieren
+flutter run -d chrome    # App im Browser starten
+```
+
+Weitere Geräte:
+```bash
+flutter devices          # Verfügbare Geräte anzeigen
+flutter run -d <device>  # z. B. -d android, -d ios, -d web
+```
+
+---
+
+## 🧠 Funktionsüberblick
+
+### 🔐 `LoginScreen`
+- E-Mail + Passwort
+- Leitet nach Klick auf "Login" zum `/dashboard`
+
+### 📸 `QRScannerScreen`
+- Placeholder-Screen für QR-Code-Erfassung (wird später erweitert)
+
+### 🏠 `WelcomeScreen`
+- Einstiegspunkt nach Splash
+- Buttons für "Sign In" und "Create account"
+
+### 📊 `DashboardScreen`
+- Community-Nachrichten als Liste
+- Push-Banner mit Lesestatus (nach 2s simuliert)
+
+### 🔔 `NotificationBanner`
+- Zeigt Push-Benachrichtigung
+- Callback zur Markierung als gelesen
+
+### 📦 `Message`-Modell
+```dart
+Message(String content, DateTime timestamp, bool read);
+```
+
+---
+
+## 🛠 Routen (in `main.dart`)
+
+| Route       | Ziel-Screen        |
+|-------------|--------------------|
+| `/login`    | `LoginScreen`      |
+| `/qr`       | `QRScannerScreen`  |
+| `/dashboard`| `DashboardScreen`  |
