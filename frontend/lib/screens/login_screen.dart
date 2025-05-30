@@ -41,6 +41,8 @@ class LoginScreen extends StatelessWidget {
               child: TextButton(
                 onPressed: () {
                   // Add forgot password logic here
+                    Navigator.pushReplacementNamed(context, '/dashboard');
+
                 },
                 child: const Text(
                   'Forgot your password?',
@@ -52,6 +54,8 @@ class LoginScreen extends StatelessWidget {
             ElevatedButton(
               onPressed: () {
                 // Add login logic here
+                  Navigator.pushReplacementNamed(context, '/dashboard');
+
               },
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.black,

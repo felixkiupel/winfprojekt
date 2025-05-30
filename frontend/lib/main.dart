@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
-import 'welcome_screen.dart';
-import 'login_screen.dart';
-import 'QRScannerScreen.dart';
+import 'screens/welcome_screen.dart';
+import 'screens/login_screen.dart';
+import 'screens/QRScannerScreen.dart';
+import 'screens/dashboard_screen.dart';
 
 void main() {
   runApp(const MedApp());
@@ -18,6 +19,7 @@ class MedApp extends StatelessWidget {
       routes: {
         '/login': (_) => const LoginScreen(),
         '/qr': (_) => const QRScannerScreen(),
+        '/dashboard': (_) => const DashboardScreen(),
       },
     );
   }
