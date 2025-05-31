@@ -1,0 +1,8 @@
+/* Damit .png in den Scanner ziehen */
+
+xcrun simctl addmedia booted /Users/moritzvonburen/Documents/Flutter/winfprojekt/assets/qr1.png
+
+/* Generator */
+
+https://me-qr.com/de/qr-code-generator/qr
+
