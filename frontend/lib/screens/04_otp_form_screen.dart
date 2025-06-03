@@ -96,7 +96,7 @@ class _OtpFormScreenState extends State<OtpFormScreen> {
                     const SizedBox(height: 24),
                     TextFormField(
                       decoration: const InputDecoration(
-                        labelText: 'Username',
+                        labelText: 'One-Time-Password(OTP)',
                         border: OutlineInputBorder(),
                       ),
                       keyboardType: TextInputType.number,
@@ -106,20 +106,6 @@ class _OtpFormScreenState extends State<OtpFormScreen> {
                         return null;
                       },
                       onSaved: (value) => otp = value,
-                    ),
-                    const SizedBox(height: 16),
-                    TextFormField(
-                      decoration: const InputDecoration(
-                        labelText: 'One-Time-Password(OTP)',
-                        border: OutlineInputBorder(),
-                      ),
-                      obscureText: true,
-                      validator: (value) {
-                        if (value == null || value.isEmpty) return 'Bitte Passwort eingeben';
-                        if (value.length < 6) return 'Passwort muss mindestens 6 Zeichen haben';
-                        return null;
-                      },
-                      onSaved: (value) => password = value,
                     ),
                     const SizedBox(height: 16),
                     if (errorMessage != null) ...[

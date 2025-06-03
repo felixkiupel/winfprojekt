@@ -13,9 +13,9 @@ def auth():
     data = request.get_json()
     code = data.get('code')
     otp = data.get('otp')
-    password = data.get('password')
+    #password = data.get('password')
     # Demo validation
-    if code in auth_codes and otp == '000000' and len(password) >= 6:
+    if code in auth_codes and otp == '000000':
         return jsonify({'status': 'ok'}), 200
     return jsonify({'error': 'Invalid credentials'}), 400
 
