@@ -44,8 +44,43 @@ app.*.map.json
 /android/app/profile
 /android/app/release
 
-# Python & Flutter
+# Bytecode-Cache
+__pycache__/
+*.py[cod]
+
+# macOS
+.DS_Store
+
+# IntelliJ/PyCharm
+.idea/
+
+# Flutter & Dart (wenn nicht schon drin)
+.dart_tool/
+.packages
+.pub-cache/
+.flutter-plugins
+.flutter-plugins-dependencies
+
+# Flutter build-Ordner
+build/
+
+# iOS spezifisch
+ios/Pods/
+ios/Runner.xcworkspace/
+ios/.symlinks/
+ios/Flutter/ephemeral/
+ios/Flutter/App.framework
+ios/Flutter/Flutter.framework
+
+# Android spezifisch
+android/.gradle/
+android/local.properties
+
+# VSCode Settings (optional)
+.vscode/
+
+# Umgebung
 venv/
-flutter/
+.env
 
 
