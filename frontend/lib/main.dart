@@ -12,6 +12,7 @@ void main() async {
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
+  // This widget is the root of your application.
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
@@ -31,10 +32,61 @@ class MyApp extends StatelessWidget {
   }
 }
 
-// Neue HomeScreen mit Push-Integration
+// Splash Screen aus main
+class SplashScreen extends StatefulWidget {
+  const SplashScreen({super.key});
+  
+  @override
+  State<SplashScreen> createState() => _SplashScreenState();
+}
+
+class _SplashScreenState extends State<SplashScreen> {
+  @override
+  void initState() {
+    super.initState();
+    Future.delayed(const Duration(seconds: 2), () {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => const WelcomeScreen()),
+      );
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: const Color(0xFFF3FFF5),
+      body: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: const [
+            Text(
+              'MedApp',
+              style: TextStyle(
+                fontSize: 28,
+                fontWeight: FontWeight.bold,
+                color: Colors.black,
+              ),
+            ),
+            SizedBox(height: 8),
+            Text(
+              'Your Health is our priority',
+              style: TextStyle(
+                fontSize: 16,
+                color: Colors.grey,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// Dein verbessertes HomeScreen mit Push-Integration
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
-
+  
   @override
   State<HomeScreen> createState() => _HomeScreenState();
 }
@@ -61,10 +113,7 @@ class _HomeScreenState extends State<HomeScreen> {
   }
   
   Future<void> _initializePush() async {
-    // Push Service initialisieren
     await _pushService.initialize(userId: 'user123');
-    
-    // Unread count abrufen
     final count = await _pushService.getUnreadCount();
     setState(() {
       _unreadCount = count;
@@ -130,35 +179,34 @@ class _HomeScreenState extends State<HomeScreen> {
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Icon(Icons.inbox, size: 64, color: Colors.grey),
-                    SizedBox(height: 16),
-                    Text(
+                    const Icon(Icons.inbox, size: 64, color: Colors.grey),
+                    const SizedBox(height: 16),
+                    const Text(
                       'Keine Nachrichten',
                       style: TextStyle(fontSize: 18, color: Colors.grey),
                     ),
-                    SizedBox(height: 32),
+                    const SizedBox(height: 32),
                     ElevatedButton.icon(
                       onPressed: () async {
                         await _pushService.sendTestNotification();
                         ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(content: Text('Test Push gesendet!')),
+                          const SnackBar(content: Text('Test Push gesendet!')),
                         );
                       },
-                      icon: Icon(Icons.notifications_active),
-                      label: Text('Test Push senden'),
+                      icon: const Icon(Icons.notifications_active),
+                      label: const Text('Test Push senden'),
                     ),
                   ],
                 ),
               )
             : ListView.builder(
                 padding: const EdgeInsets.all(16),
-                itemCount: _messages.length + 2, // +2 für Header
+                itemCount: _messages.length + 2,
                 itemBuilder: (context, index) {
                   if (index == 0) {
-                    // Welcome Card
                     return Card(
                       elevation: 2,
-                      margin: EdgeInsets.only(bottom: 16),
+                      margin: const EdgeInsets.only(bottom: 16),
                       child: Padding(
                         padding: const EdgeInsets.all(16),
                         child: Column(
@@ -178,9 +226,8 @@ class _HomeScreenState extends State<HomeScreen> {
                       ),
                     );
                   } else if (index == 1) {
-                    // Section Header
                     return Padding(
-                      padding: EdgeInsets.only(bottom: 8, top: 8),
+                      padding: const EdgeInsets.only(bottom: 8, top: 8),
                       child: Text(
                         'Aktuelle Nachrichten',
                         style: Theme.of(context).textTheme.titleLarge,
@@ -188,7 +235,6 @@ class _HomeScreenState extends State<HomeScreen> {
                     );
                   }
                   
-                  // Message Cards
                   final message = _messages[index - 2];
                   return _buildMessageCard(message: message);
                 },
@@ -196,13 +242,12 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () async {
-          // Test notification
           await _pushService.sendTestNotification();
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Test Push gesendet!')),
+            const SnackBar(content: Text('Test Push gesendet!')),
           );
         },
-        child: Icon(Icons.notifications_active),
+        child: const Icon(Icons.notifications_active),
         tooltip: 'Test Push senden',
       ),
     );
@@ -211,9 +256,7 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget _buildMessageCard({required Map<String, dynamic> message}) {
     final priority = message['data']?['priority'] ?? 'normal';
     final timestamp = DateTime.tryParse(message['timestamp'] ?? '');
-    final timeAgo = timestamp != null
-        ? _getTimeAgo(timestamp)
-        : 'Unbekannt';
+    final timeAgo = timestamp != null ? _getTimeAgo(timestamp) : 'Unbekannt';
     
     Color priorityColor = priority == 'high' 
       ? Colors.orange 
@@ -255,17 +298,14 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ],
         ),
-        trailing: IconButton(
-          icon: const Icon(Icons.arrow_forward_ios, size: 16),
-          onPressed: () {
-            // Open message detail
-          },
+        trailing: const IconButton(
+          icon: Icon(Icons.arrow_forward_ios, size: 16),
+          onPressed: null,
         ),
         onTap: () async {
-          // Mark as read
           if (!isRead && message['id'] != null) {
             await _pushService.markMessageAsRead(message['id']);
-            await _loadMessages(); // Reload to update UI
+            await _loadMessages();
           }
         },
       ),
