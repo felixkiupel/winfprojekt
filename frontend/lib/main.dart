@@ -1,122 +1,295 @@
 import 'package:flutter/material.dart';
+import 'push_service_simple.dart';  // Vereinfachter Service
+import 'welcome_screen.dart';
+import 'login_screen.dart';
+import 'QRScannerScreen.dart';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
   runApp(const MyApp());
 }
 
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
-  // This widget is the root of your application.
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Flutter Demo',
+      title: 'MedApp',
       theme: ThemeData(
-        // This is the theme of your application.
-        //
-        // TRY THIS: Try running your application with "flutter run". You'll see
-        // the application has a purple toolbar. Then, without quitting the app,
-        // try changing the seedColor in the colorScheme below to Colors.green
-        // and then invoke "hot reload" (save your changes or press the "hot
-        // reload" button in a Flutter-supported IDE, or press "r" if you used
-        // the command line to start the app).
-        //
-        // Notice that the counter didn't reset back to zero; the application
-        // state is not lost during the reload. To reset the state, use hot
-        // restart instead.
-        //
-        // This works for code too, not just values: Most code changes can be
-        // tested with just a hot reload.
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
+        colorScheme: ColorScheme.fromSeed(seedColor: Colors.teal),
+        useMaterial3: true,
       ),
-      home: const MyHomePage(title: 'Flutter Demo Home Page'),
+      initialRoute: '/home',  // Temporär: Direkt zur HomeScreen
+      routes: {
+        '/': (context) => const WelcomeScreen(),
+        '/login': (context) => const LoginScreen(),
+        '/qr': (context) => const QRScannerScreen(),
+        '/home': (context) => const HomeScreen(),
+      },
     );
   }
 }
 
-class MyHomePage extends StatefulWidget {
-  const MyHomePage({super.key, required this.title});
-
-  // This widget is the home page of your application. It is stateful, meaning
-  // that it has a State object (defined below) that contains fields that affect
-  // how it looks.
-
-  // This class is the configuration for the state. It holds the values (in this
-  // case the title) provided by the parent (in this case the App widget) and
-  // used by the build method of the State. Fields in a Widget subclass are
-  // always marked "final".
-
-  final String title;
+// Neue HomeScreen mit Push-Integration
+class HomeScreen extends StatefulWidget {
+  const HomeScreen({super.key});
 
   @override
-  State<MyHomePage> createState() => _MyHomePageState();
+  State<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _MyHomePageState extends State<MyHomePage> {
-  int _counter = 0;
-
-  void _incrementCounter() {
-    setState(() {
-      // This call to setState tells the Flutter framework that something has
-      // changed in this State, which causes it to rerun the build method below
-      // so that the display can reflect the updated values. If we changed
-      // _counter without calling setState(), then the build method would not be
-      // called again, and so nothing would appear to happen.
-      _counter++;
+class _HomeScreenState extends State<HomeScreen> {
+  final SimplePushService _pushService = SimplePushService();
+  List<Map<String, dynamic>> _messages = [];
+  int _unreadCount = 0;
+  
+  @override
+  void initState() {
+    super.initState();
+    _initializePush();
+    _loadMessages();
+    
+    // Listen to WebSocket messages
+    _pushService.messageStream.listen((message) {
+      if (message['type'] == 'push_notification') {
+        setState(() {
+          _messages.insert(0, message['notification']);
+        });
+      }
     });
   }
-
+  
+  Future<void> _initializePush() async {
+    // Push Service initialisieren
+    await _pushService.initialize(userId: 'user123');
+    
+    // Unread count abrufen
+    final count = await _pushService.getUnreadCount();
+    setState(() {
+      _unreadCount = count;
+    });
+  }
+  
+  Future<void> _loadMessages() async {
+    final messages = await _pushService.getMessages();
+    setState(() {
+      _messages = messages;
+    });
+  }
+  
   @override
   Widget build(BuildContext context) {
-    // This method is rerun every time setState is called, for instance as done
-    // by the _incrementCounter method above.
-    //
-    // The Flutter framework has been optimized to make rerunning build methods
-    // fast, so that you can just rebuild anything that needs updating rather
-    // than having to individually change instances of widgets.
     return Scaffold(
       appBar: AppBar(
-        // TRY THIS: Try changing the color here to a specific color (to
-        // Colors.amber, perhaps?) and trigger a hot reload to see the AppBar
-        // change color while the other colors stay the same.
+        title: const Text('MedApp Dashboard'),
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
-        // Here we take the value from the MyHomePage object that was created by
-        // the App.build method, and use it to set our appbar title.
-        title: Text(widget.title),
+        actions: [
+          Stack(
+            children: [
+              IconButton(
+                icon: const Icon(Icons.notifications),
+                onPressed: () {
+                  // Navigate to notifications
+                },
+              ),
+              if (_unreadCount > 0)
+                Positioned(
+                  right: 8,
+                  top: 8,
+                  child: Container(
+                    padding: const EdgeInsets.all(2),
+                    decoration: BoxDecoration(
+                      color: Colors.red,
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    constraints: const BoxConstraints(
+                      minWidth: 16,
+                      minHeight: 16,
+                    ),
+                    child: Text(
+                      '$_unreadCount',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 10,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ],
       ),
-      body: Center(
-        // Center is a layout widget. It takes a single child and positions it
-        // in the middle of the parent.
-        child: Column(
-          // Column is also a layout widget. It takes a list of children and
-          // arranges them vertically. By default, it sizes itself to fit its
-          // children horizontally, and tries to be as tall as its parent.
-          //
-          // Column has various properties to control how it sizes itself and
-          // how it positions its children. Here we use mainAxisAlignment to
-          // center the children vertically; the main axis here is the vertical
-          // axis because Columns are vertical (the cross axis would be
-          // horizontal).
-          //
-          // TRY THIS: Invoke "debug painting" (choose the "Toggle Debug Paint"
-          // action in the IDE, or press "p" in the console), to see the
-          // wireframe for each widget.
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: <Widget>[
-            const Text('You have pushed the button this many times:'),
+      body: RefreshIndicator(
+        onRefresh: () async {
+          await _loadMessages();
+        },
+        child: _messages.isEmpty
+            ? Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.inbox, size: 64, color: Colors.grey),
+                    SizedBox(height: 16),
+                    Text(
+                      'Keine Nachrichten',
+                      style: TextStyle(fontSize: 18, color: Colors.grey),
+                    ),
+                    SizedBox(height: 32),
+                    ElevatedButton.icon(
+                      onPressed: () async {
+                        await _pushService.sendTestNotification();
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text('Test Push gesendet!')),
+                        );
+                      },
+                      icon: Icon(Icons.notifications_active),
+                      label: Text('Test Push senden'),
+                    ),
+                  ],
+                ),
+              )
+            : ListView.builder(
+                padding: const EdgeInsets.all(16),
+                itemCount: _messages.length + 2, // +2 für Header
+                itemBuilder: (context, index) {
+                  if (index == 0) {
+                    // Welcome Card
+                    return Card(
+                      elevation: 2,
+                      margin: EdgeInsets.only(bottom: 16),
+                      child: Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Willkommen zurück!',
+                              style: Theme.of(context).textTheme.headlineSmall,
+                            ),
+                            const SizedBox(height: 8),
+                            const Text(
+                              'Bleiben Sie über wichtige Gesundheitsinformationen auf dem Laufenden.',
+                              style: TextStyle(color: Colors.grey),
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  } else if (index == 1) {
+                    // Section Header
+                    return Padding(
+                      padding: EdgeInsets.only(bottom: 8, top: 8),
+                      child: Text(
+                        'Aktuelle Nachrichten',
+                        style: Theme.of(context).textTheme.titleLarge,
+                      ),
+                    );
+                  }
+                  
+                  // Message Cards
+                  final message = _messages[index - 2];
+                  return _buildMessageCard(message: message);
+                },
+              ),
+      ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () async {
+          // Test notification
+          await _pushService.sendTestNotification();
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Test Push gesendet!')),
+          );
+        },
+        child: Icon(Icons.notifications_active),
+        tooltip: 'Test Push senden',
+      ),
+    );
+  }
+  
+  Widget _buildMessageCard({required Map<String, dynamic> message}) {
+    final priority = message['data']?['priority'] ?? 'normal';
+    final timestamp = DateTime.tryParse(message['timestamp'] ?? '');
+    final timeAgo = timestamp != null
+        ? _getTimeAgo(timestamp)
+        : 'Unbekannt';
+    
+    Color priorityColor = priority == 'high' 
+      ? Colors.orange 
+      : priority == 'urgent' 
+        ? Colors.red 
+        : Colors.green;
+    
+    final isRead = message['read_by']?.contains('user123') ?? false;
+    
+    return Card(
+      margin: const EdgeInsets.only(bottom: 12),
+      color: isRead ? null : Colors.blue.shade50,
+      child: ListTile(
+        leading: CircleAvatar(
+          backgroundColor: priorityColor.withOpacity(0.2),
+          child: Icon(
+            Icons.health_and_safety,
+            color: priorityColor,
+          ),
+        ),
+        title: Text(
+          message['title'] ?? 'Keine Überschrift',
+          style: TextStyle(
+            fontWeight: isRead ? FontWeight.normal : FontWeight.bold,
+          ),
+        ),
+        subtitle: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const SizedBox(height: 4),
+            Text(message['body'] ?? ''),
+            const SizedBox(height: 4),
             Text(
-              '$_counter',
-              style: Theme.of(context).textTheme.headlineMedium,
+              timeAgo,
+              style: TextStyle(
+                fontSize: 12,
+                color: Colors.grey[600],
+              ),
             ),
           ],
         ),
+        trailing: IconButton(
+          icon: const Icon(Icons.arrow_forward_ios, size: 16),
+          onPressed: () {
+            // Open message detail
+          },
+        ),
+        onTap: () async {
+          // Mark as read
+          if (!isRead && message['id'] != null) {
+            await _pushService.markMessageAsRead(message['id']);
+            await _loadMessages(); // Reload to update UI
+          }
+        },
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _incrementCounter,
-        tooltip: 'Increment',
-        child: const Icon(Icons.add),
-      ), // This trailing comma makes auto-formatting nicer for build methods.
     );
+  }
+  
+  String _getTimeAgo(DateTime dateTime) {
+    final now = DateTime.now();
+    final difference = now.difference(dateTime);
+    
+    if (difference.inDays > 0) {
+      return 'vor ${difference.inDays} Tag${difference.inDays > 1 ? 'en' : ''}';
+    } else if (difference.inHours > 0) {
+      return 'vor ${difference.inHours} Stunde${difference.inHours > 1 ? 'n' : ''}';
+    } else if (difference.inMinutes > 0) {
+      return 'vor ${difference.inMinutes} Minute${difference.inMinutes > 1 ? 'n' : ''}';
+    } else {
+      return 'gerade eben';
+    }
+  }
+  
+  @override
+  void dispose() {
+    _pushService.dispose();
+    super.dispose();
   }
 }

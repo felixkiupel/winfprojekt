@@ -1,0 +1,556 @@
+<!DOCTYPE html>
+<html lang="de">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>MedApp Push Admin</title>
+        <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
+            background: #f0f2f5;
+            color: #333;
+            line-height: 1.6;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        header {
+            background: #2c3e50;
+            color: white;
+            padding: 20px 0;
+            margin-bottom: 30px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        h1 { font-size: 28px; font-weight: 600; }
+        .status-bar {
+            background: white;
+            padding: 15px 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+        .status-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .status-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: #27ae60;
+        }
+        .main-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+        .card {
+            background: white;
+            border-radius: 8px;
+            padding: 25px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+        .card h2 {
+            font-size: 20px;
+            margin-bottom: 20px;
+            color: #2c3e50;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 500;
+            color: #555;
+        }
+        input, textarea, select {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 14px;
+            transition: border-color 0.3s;
+        }
+        input:focus, textarea:focus, select:focus {
+            outline: none;
+            border-color: #3498db;
+        }
+        textarea { min-height: 100px; resize: vertical; }
+        .btn {
+            background: #3498db;
+            color: white;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 6px;
+            font-size: 16px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+        .btn:hover { background: #2980b9; }
+        .btn:disabled {
+            background: #bdc3c7;
+            cursor: not-allowed;
+        }
+        .btn-success { background: #27ae60; }
+        .btn-success:hover { background: #229954; }
+        .btn-danger { background: #e74c3c; }
+        .btn-danger:hover { background: #c0392b; }
+        .priority-select {
+            display: flex;
+            gap: 10px;
+            margin-top: 10px;
+        }
+        .priority-btn {
+            flex: 1;
+            padding: 8px;
+            border: 2px solid #ddd;
+            background: white;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        .priority-btn.active {
+            border-color: #3498db;
+            background: #ebf5fb;
+        }
+        .priority-btn.normal:hover { border-color: #27ae60; }
+        .priority-btn.high:hover { border-color: #f39c12; }
+        .priority-btn.urgent:hover { border-color: #e74c3c; }
+        .messages-list {
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        .message-item {
+            padding: 15px;
+            border-bottom: 1px solid #eee;
+            transition: background 0.2s;
+        }
+        .message-item:hover { background: #f8f9fa; }
+        .message-header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 5px;
+        }
+        .message-title { font-weight: 600; }
+        .message-time { color: #7f8c8d; font-size: 12px; }
+        .message-body { color: #555; font-size: 14px; }
+        .success-toast {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: #27ae60;
+            color: white;
+            padding: 15px 20px;
+            border-radius: 6px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            display: none;
+            animation: slideIn 0.3s ease;
+        }
+        @keyframes slideIn {
+            from { transform: translateX(100%); }
+            to { transform: translateX(0); }
+        }
+        .phone-preview {
+            background: #1a1a1a;
+            border-radius: 30px;
+            padding: 20px;
+            max-width: 300px;
+            margin: 20px auto;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+        }
+        .phone-screen {
+            background: #f0f0f0;
+            border-radius: 20px;
+            padding: 20px;
+            min-height: 200px;
+        }
+        .notification-preview {
+            background: white;
+            border-radius: 12px;
+            padding: 15px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .notif-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 8px;
+            font-size: 14px;
+        }
+        .notif-icon { font-size: 20px; margin-right: 8px; }
+        .notif-app { font-weight: 600; }
+        .notif-time { margin-left: auto; color: #666; font-size: 12px; }
+        .notif-title { font-weight: 600; margin-bottom: 4px; }
+        .notif-body { color: #666; font-size: 14px; }
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        .stat-card {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            text-align: center;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+        .stat-value {
+            font-size: 28px;
+            font-weight: 600;
+            color: #2c3e50;
+        }
+        .stat-label {
+            color: #7f8c8d;
+            font-size: 14px;
+            margin-top: 5px;
+        }
+        @media (max-width: 768px) {
+            .main-grid { grid-template-columns: 1fr; }
+            .stats-grid { grid-template-columns: repeat(2, 1fr); }
+        }
+    </style>
+    </head>
+    <body>
+        <header>
+            <div class="container">
+                <h1>🏥 MedApp Push Admin</h1>
+            </div>
+        </header>
+
+        <div class="container">
+            <!-- Status Bar -->
+            <div class="status-bar">
+                <div class="status-item">
+                    <div class="status-dot"></div>
+                    <span>Server: <strong
+                            id="serverStatus">Verbinde...</strong></span>
+                </div>
+                <div class="status-item">
+                    <span>WebSocket Verbindungen: <strong
+                            id="wsConnections">0</strong></span>
+                </div>
+                <div class="status-item">
+                    <span>Registrierte Geräte: <strong
+                            id="deviceCount">0</strong></span>
+                </div>
+            </div>
+
+            <!-- Statistics -->
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-value" id="sentToday">0</div>
+                    <div class="stat-label">Heute gesendet</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="totalMessages">0</div>
+                    <div class="stat-label">Gesamt Nachrichten</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="successRate">100%</div>
+                    <div class="stat-label">Erfolgsrate</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="avgDelivery">< 1s</div>
+                    <div class="stat-label">Ø Zustellzeit</div>
+                </div>
+            </div>
+
+            <!-- Main Grid -->
+            <div class="main-grid">
+                <!-- Push Notification Form -->
+                <div class="card">
+                    <h2>📤 Push-Benachrichtigung senden</h2>
+                    <form id="pushForm">
+                        <div class="form-group">
+                            <label>Titel</label>
+                            <input type="text" id="title"
+                                placeholder="z.B. Wichtige Gesundheitsinformation"
+                                required>
+                        </div>
+
+                        <div class="form-group">
+                            <label>Nachricht</label>
+                            <textarea id="body"
+                                placeholder="Ihre Nachricht hier..."
+                                required></textarea>
+                        </div>
+
+                        <div class="form-group">
+                            <label>Priorität</label>
+                            <div class="priority-select">
+                                <button type="button"
+                                    class="priority-btn normal active"
+                                    data-priority="normal">
+                                    🟢 Normal
+                                </button>
+                                <button type="button" class="priority-btn high"
+                                    data-priority="high">
+                                    🟡 Hoch
+                                </button>
+                                <button type="button"
+                                    class="priority-btn urgent"
+                                    data-priority="urgent">
+                                    🔴 Dringend
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label>Zielgruppe</label>
+                            <select id="target">
+                                <option value="all">Alle Nutzer</option>
+                                <option value="aboriginal_health">Aboriginal
+                                    Health Community</option>
+                                <option value="torres_strait">Torres Strait
+                                    Community</option>
+                                <option value="remote">Remote
+                                    Communities</option>
+                            </select>
+                        </div>
+
+                        <button type="submit" class="btn">
+                            🚀 Benachrichtigung senden
+                        </button>
+                    </form>
+
+                    <!-- Phone Preview -->
+                    <div class="phone-preview">
+                        <div class="phone-screen">
+                            <div class="notification-preview">
+                                <div class="notif-header">
+                                    <span class="notif-icon">🏥</span>
+                                    <span class="notif-app">MedApp</span>
+                                    <span class="notif-time">jetzt</span>
+                                </div>
+                                <div class="notif-title"
+                                    id="previewTitle">Notification Title</div>
+                                <div class="notif-body" id="previewBody">Die
+                                    Nachricht erscheint hier...</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Recent Messages -->
+                <div class="card">
+                    <h2>📋 Letzte Nachrichten</h2>
+                    <div class="messages-list" id="messagesList">
+                        <p
+                            style="color: #7f8c8d; text-align: center; padding: 20px;">
+                            Noch keine Nachrichten gesendet
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Health Message Form -->
+            <div class="card" style="margin-top: 20px;">
+                <h2>💬 Health Message erstellen</h2>
+                <form id="healthForm">
+                    <div class="form-group">
+                        <label>Titel</label>
+                        <input type="text" id="healthTitle"
+                            placeholder="z.B. COVID-19 Impfupdate" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Inhalt</label>
+                        <textarea id="healthContent"
+                            placeholder="Detaillierte Gesundheitsinformationen..."
+                            rows="5" required></textarea>
+                    </div>
+
+                    <button type="submit" class="btn btn-success">
+                        📨 Health Message senden
+                    </button>
+                </form>
+            </div>
+        </div>
+
+        <!-- Success Toast -->
+        <div class="success-toast" id="successToast">
+            ✅ Erfolgreich gesendet!
+        </div>
+
+        <script>
+        const API_URL = 'http://localhost:8000';
+        let selectedPriority = 'normal';
+        let sentToday = 0;
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            updateServerStatus();
+            loadMessages();
+            setInterval(updateServerStatus, 5000);
+            setInterval(loadMessages, 10000);
+        });
+
+        // Update server status
+        async function updateServerStatus() {
+            try {
+                const response = await fetch(`${API_URL}/`);
+                if (!response.ok) {
+                    throw new Error('Server nicht erreichbar');
+                }
+                const data = await response.json();
+                
+                document.getElementById('serverStatus').textContent = 'Online';
+                document.getElementById('serverStatus').style.color = '#27ae60';
+                document.getElementById('wsConnections').textContent = data.active_connections || 0;
+                document.getElementById('deviceCount').textContent = data.registered_devices || 0;
+                document.getElementById('totalMessages').textContent = data.total_messages || 0;
+            } catch (error) {
+                console.error('Server Status Error:', error);
+                document.getElementById('serverStatus').textContent = 'Offline';
+                document.getElementById('serverStatus').style.color = '#e74c3c';
+                
+                // Zeige Hilfe bei file:// URLs
+                if (window.location.protocol === 'file:') {
+                    console.warn('Admin läuft als file:// - CORS kann Probleme machen.');
+                    console.info('Tipp: Nutze einen lokalen Webserver oder öffne Chrome mit --disable-web-security');
+                }
+            }
+        }
+
+        // Load recent messages
+        async function loadMessages() {
+            try {
+                const response = await fetch(`${API_URL}/messages`);
+                const data = await response.json();
+                
+                const messagesList = document.getElementById('messagesList');
+                document.getElementById('totalMessages').textContent = data.total;
+                
+                if (data.messages.length === 0) {
+                    messagesList.innerHTML = '<p style="color: #7f8c8d; text-align: center; padding: 20px;">Noch keine Nachrichten gesendet</p>';
+                    return;
+                }
+                
+                messagesList.innerHTML = data.messages.reverse().map(msg => `
+                    <div class="message-item">
+                        <div class="message-header">
+                            <span class="message-title">${msg.title}</span>
+                            <span class="message-time">${new Date(msg.timestamp).toLocaleString('de-DE')}</span>
+                        </div>
+                        <div class="message-body">${msg.body}</div>
+                    </div>
+                `).join('');
+            } catch (error) {
+                console.error('Error loading messages:', error);
+            }
+        }
+
+        // Priority selection
+        document.querySelectorAll('.priority-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('.priority-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                selectedPriority = btn.dataset.priority;
+            });
+        });
+
+        // Live preview
+        document.getElementById('title').addEventListener('input', (e) => {
+            document.getElementById('previewTitle').textContent = e.target.value || 'Notification Title';
+        });
+
+        document.getElementById('body').addEventListener('input', (e) => {
+            const text = e.target.value || 'Die Nachricht erscheint hier...';
+            document.getElementById('previewBody').textContent = 
+                text.length > 100 ? text.substring(0, 100) + '...' : text;
+        });
+
+        // Send push notification
+        document.getElementById('pushForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const title = document.getElementById('title').value;
+            const body = document.getElementById('body').value;
+            const target = document.getElementById('target').value;
+            
+            const notification = {
+                title,
+                body,
+                data: {
+                    priority: selectedPriority,
+                    target: target,
+                    timestamp: new Date().toISOString()
+                },
+                broadcast: target === 'all'
+            };
+            
+            try {
+                const response = await fetch(`${API_URL}/send-push`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(notification)
+                });
+                
+                const result = await response.json();
+                
+                if (result.status === 'success') {
+                    showSuccess();
+                    sentToday++;
+                    document.getElementById('sentToday').textContent = sentToday;
+                    document.getElementById('pushForm').reset();
+                    loadMessages();
+                }
+            } catch (error) {
+                alert('Fehler beim Senden: ' + error.message);
+            }
+        });
+
+        // Send health message
+        document.getElementById('healthForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const title = document.getElementById('healthTitle').value;
+            const content = document.getElementById('healthContent').value;
+            
+            const message = {
+                title,
+                content,
+                priority: selectedPriority
+            };
+            
+            try {
+                const response = await fetch(`${API_URL}/send-health-message`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(message)
+                });
+                
+                const result = await response.json();
+                
+                if (result.status === 'success') {
+                    showSuccess();
+                    sentToday++;
+                    document.getElementById('sentToday').textContent = sentToday;
+                    document.getElementById('healthForm').reset();
+                    loadMessages();
+                }
+            } catch (error) {
+                alert('Fehler beim Senden: ' + error.message);
+            }
+        });
+
+        // Show success toast
+        function showSuccess() {
+            const toast = document.getElementById('successToast');
+            toast.style.display = 'block';
+            setTimeout(() => {
+                toast.style.display = 'none';
+            }, 3000);
+        }
+    </script>
+    </body>
+</html>
