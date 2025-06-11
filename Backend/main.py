@@ -1,43 +1,42 @@
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 import bcrypt
-import json
-import os
+from db import users_collection
 
 app = FastAPI()
 
-DATA_FILE = "users.json"
-
 class UserIn(BaseModel):
+    name: str
+    surname: str
     email: str
+    medical_id: str
     password: str
-
-def load_users():
-    if not os.path.exists(DATA_FILE):
-        return {}
-    with open(DATA_FILE, "r") as f:
-        return json.load(f)
-
-def save_users(users):
-    with open(DATA_FILE, "w") as f:
-        json.dump(users, f)
 
 @app.post("/register")
 async def register(user: UserIn):
-    users = load_users()
-    if user.email in users:
+    if users_collection.find_one({"email": user.email}):
         raise HTTPException(status_code=400, detail="User already exists")
+
     hashed_pw = bcrypt.hashpw(user.password.encode('utf-8'), bcrypt.gensalt())
-    users[user.email] = hashed_pw.decode('utf-8')
-    save_users(users)
+
+    users_collection.insert_one({
+        "name": user.name,
+        "surname": user.surname,
+        "email": user.email,
+        "medical_id": user.medical_id,
+        "password": hashed_pw.decode('utf-8')
+    })
+
     return {"message": "Registration successful"}
 
 @app.post("/login")
 async def login(user: UserIn):
-    users = load_users()
-    if user.email not in users:
-        print("invalid")
-    hashed_pw = users[user.email].encode('utf-8')
+    db_user = users_collection.find_one({"email": user.email})
+    if not db_user:
+        raise HTTPException(status_code=400, detail="Invalid email or password")
+
+    hashed_pw = db_user["password"].encode('utf-8')
     if not bcrypt.checkpw(user.password.encode('utf-8'), hashed_pw):
-        raise HTTPException(status_code=400, detail="Ungültige E-Mail oder Passwort")
-    return {"message": "Login erfolgreich"}
+        raise HTTPException(status_code=400, detail="Invalid email or password")
+
+    return {"message": f"Login successful. Welcome, {db_user['name']}!"}
