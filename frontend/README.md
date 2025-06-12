@@ -1,74 +1,91 @@
+# 🏥 MedApp - Push Notification System
 
-# MedApp – Community Health App
+Einfaches Push-Benachrichtigungssystem für die MedApp - funktioniert mit WebSocket.
 
-Eine Flutter-App zur Unterstützung von Aboriginal & Torres Strait Islander Communities.  
-Sie bietet sichere Anmeldung, QR-basierte Registrierung, Community-Nachrichten und Push-Benachrichtigungen.
+## 🚀 Schnellstart (3 Minuten)
 
----
-
-## ⚙️ Voraussetzungen & Setup
-
-### 📦 Flutter installieren
-
-#### macOS / Linux / Windows:
-1. [Flutter SDK herunterladen](https://docs.flutter.dev/get-started/install)
-2. Entpacken und Pfad zur `flutter/bin` zu `PATH` hinzufügen
-3. Terminal öffnen und ausführen:
-   ```bash
-   flutter doctor
-   ```
-
-> Damit werden alle Systemabhängigkeiten (z. B. Android Studio, Xcode etc.) geprüft.
-
----
-
-## 🚀 Projekt starten
+### 1. Backend starten
 
 ```bash
-flutter pub get          # Abhängigkeiten installieren
-flutter run -d chrome    # App im Browser starten
+# Terminal 1
+cd backend/app
+python3 simple_push_server.py
+
+# Server läuft auf http://localhost:8000
 ```
 
-Weitere Geräte:
+### 2. Admin Interface öffnen
+
 ```bash
-flutter devices          # Verfügbare Geräte anzeigen
-flutter run -d <device>  # z. B. -d android, -d ios, -d web
+# Terminal 2
+cd backend/app
+python3 -m http.server 8080
+
+# Browser: http://localhost:8080/push_admin_simple.html
 ```
 
----
+### 3. Flutter App starten
 
-## 🧠 Funktionsüberblick
+```bash
+# Terminal 3
+cd frontend
+flutter run -d chrome
 
-### 🔐 `LoginScreen`
-- E-Mail + Passwort
-- Leitet nach Klick auf "Login" zum `/dashboard`
-
-### 📸 `QRScannerScreen`
-- Placeholder-Screen für QR-Code-Erfassung (wird später erweitert)
-
-### 🏠 `WelcomeScreen`
-- Einstiegspunkt nach Splash
-- Buttons für "Sign In" und "Create account"
-
-### 📊 `DashboardScreen`
-- Community-Nachrichten als Liste
-- Push-Banner mit Lesestatus (nach 2s simuliert)
-
-### 🔔 `NotificationBanner`
-- Zeigt Push-Benachrichtigung
-- Callback zur Markierung als gelesen
-
-### 📦 `Message`-Modell
-```dart
-Message(String content, DateTime timestamp, bool read);
+# Für andere Geräte:
+# flutter run -d macos
+# flutter run -d ios
+# flutter run -d android
 ```
 
+## 📦 Installation (einmalig)
+
+### Python Backend
+```bash
+cd backend
+python3 -m venv venv
+source venv/bin/activate  # Mac/Linux
+# oder
+venv\Scripts\activate     # Windows
+
+pip install fastapi uvicorn websockets
+```
+
+### Flutter Frontend
+```bash
+cd frontend
+flutter pub get
+```
+
+## 💡 Verwendung
+
+1. **Push senden**: Öffne Admin Interface → Nachricht eingeben → Senden
+2. **Login überspringen**: Klick auf "Login" Button (keine Eingabe nötig)
+3. **Test Push**: In der App auf den Floating Action Button klicken
+
+## 🎯 Test-Ablauf
+
+1. Alle 3 Services starten (Backend, Admin, Flutter)
+2. Im Admin Interface eine Nachricht senden
+3. Die Nachricht erscheint sofort in der Flutter App
+4. Tap auf Nachricht → wird als gelesen markiert
+
+## ⚠️ Troubleshooting
+
+**"Server Offline" im Admin?**
+- Prüfe ob Backend läuft: `curl http://localhost:8000/`
+- Nutze den Python HTTP Server (Schritt 2)
+
+**WebSocket Fehler?**
+- Normal beim Start, ignorieren
+- Backend muss VOR Flutter gestartet werden
+
+**Login funktioniert nicht?**
+- Einfach auf "Login" klicken (keine Daten nötig)
+- Oder in `main.dart`: `initialRoute: '/home'` setzen
+
+## 🛠️ Entwicklung
+
+- **Keine Datenbank** - alles im Speicher
+- **Später**: MongoDB Integration geplant
+
 ---
-
-## 🛠 Routen (in `main.dart`)
-
-| Route       | Ziel-Screen        |
-|-------------|--------------------|
-| `/login`    | `LoginScreen`      |
-| `/qr`       | `QRScannerScreen`  |
-| `/dashboard`| `DashboardScreen`  |
