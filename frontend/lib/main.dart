@@ -4,6 +4,9 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 import 'screens/01_welcome.dart';
+import 'screens/02b_login.dart';
+import 'screens/06_homescreen.dart';
+import 'screens/settings_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -101,14 +104,21 @@ class _MyAppState extends State<MyApp> {
           ),
         ),
       ),
-      // Statt WelcomeScreen zuerst die SplashScreen
-      home: const SplashScreen(),
+      // Routes definieren
+      routes: {
+        '/': (context) => const SplashScreen(),
+        '/welcome': (context) => const WelcomeScreen(),
+        '/login': (context) => const LoginScreen(),
+        '/home': (context) => const HomeScreenTemplate(),
+        '/settings': (context) => const SettingsScreen(),
+      },
+      initialRoute: '/',
       debugShowCheckedModeBanner: false,
     );
   }
 }
 
-/// Zeigt für 3 Sekunden nur den Text „Medical App“ an und wechselt dann zur WelcomeScreen
+/// Zeigt für 3 Sekunden nur den Text „Medical App" an und wechselt dann zur WelcomeScreen
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
   @override
