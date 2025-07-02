@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '02a_registration.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 
 class LoginScreen extends StatefulWidget {
@@ -16,6 +17,13 @@ class _LoginScreenState extends State<LoginScreen> {
   bool _obscureText = true;
   bool _loading = false;
   String? _errorMessage;
+  
+  // Test users for quick login
+  final testUsers = [
+    {'email': 'test@medapp.com', 'password': 'test123', 'name': 'Test User'},
+    {'email': 'admin@medapp.com', 'password': 'admin123', 'name': 'Admin'},
+    {'email': 'demo@demo.com', 'password': 'demo', 'name': 'Demo User'},
+  ];
 
   Future<void> _attemptLogin() async {
     final email = emailController.text.trim();
@@ -33,24 +41,42 @@ class _LoginScreenState extends State<LoginScreen> {
       _errorMessage = null;
     });
 
-    // TODO: Hier  tatsächliche Login-Logik einfügen.
+    // Simulate login check with test users
+    await Future.delayed(const Duration(seconds: 1));
+    
+    bool loginSuccess = false;
+    String userName = '';
+    
+    for (var user in testUsers) {
+      if (user['email'] == email && user['password'] == password) {
+        loginSuccess = true;
+        userName = user['name']!;
+        break;
+      }
+    }
 
-    await Future.delayed(const Duration(seconds: 2));
-
-    // Beispiel: erfolgreiche Auth, direkt zum HomeScreen wechseln
-    setState(() {
-      _loading = false;
-    });
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(builder: (_) => RegistrationScreen()),
-    );
-
-    // Wenn Login fehlschlägt, statt Navigator.pushReplacement:
-    // setState(() {
-    //   _loading = false;
-    //   _errorMessage = 'Ungültige Anmeldedaten';
-    // });
+    if (loginSuccess) {
+      // Save user data
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('user_email', email);
+      await prefs.setString('user_name', userName);
+      await prefs.setString('user_id', email.split('@')[0]); // Simple user ID
+      await prefs.setBool('is_logged_in', true);
+      
+      // Navigate to home
+      setState(() {
+        _loading = false;
+      });
+      
+      if (mounted) {
+        Navigator.pushReplacementNamed(context, '/home');
+      }
+    } else {
+      setState(() {
+        _loading = false;
+        _errorMessage = 'Ungültige Anmeldedaten';
+      });
+    }
   }
 
   @override
@@ -90,6 +116,37 @@ class _LoginScreenState extends State<LoginScreen> {
               ),
             ),
             const SizedBox(height: 24),
+            
+            // Test User Info Box
+            Container(
+              padding: const EdgeInsets.all(16),
+              margin: const EdgeInsets.only(bottom: 20),
+              decoration: BoxDecoration(
+                color: Colors.blue.shade50,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.blue.shade200),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    '🧪 Test-Benutzer:',
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 8),
+                  ...testUsers.map((user) => Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 2),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.person, size: 16, color: Colors.grey),
+                        const SizedBox(width: 8),
+                        Text('${user['email']} / ${user['password']}'),
+                      ],
+                    ),
+                  )).toList(),
+                ],
+              ),
+            ),
 
             // E-Mail-Eingabe
             TextField(
@@ -109,6 +166,7 @@ class _LoginScreenState extends State<LoginScreen> {
             TextField(
               controller: passwordController,
               obscureText: _obscureText,
+              onSubmitted: (_) => _attemptLogin(),
               decoration: InputDecoration(
                 filled: false,
                 prefixIcon: const Icon(Icons.lock_outline),
@@ -129,18 +187,18 @@ class _LoginScreenState extends State<LoginScreen> {
             ),
             const SizedBox(height: 12),
 
-            // Forgot password
+            // Quick fill button
             Align(
               alignment: Alignment.centerRight,
               child: TextButton(
                 onPressed: () {
-                  // TODO: „Passwort vergessen“-Logik hier einfügen
+                  // Quick fill for testing
+                  emailController.text = 'test@medapp.com';
+                  passwordController.text = 'test123';
                 },
-                child: Text(
-                  'Forgot your password?',
-                  style: GoogleFonts.lato(
-                    color: Colors.grey,
-                  ),
+                child: const Text(
+                  'Quick Fill Test User',
+                  style: TextStyle(color: Colors.blue),
                 ),
               ),
             ),
@@ -223,6 +281,18 @@ class _LoginScreenState extends State<LoginScreen> {
                   color: Colors.black87,
                   fontSize: 16,
                 ),
+              ),
+            ),
+            const SizedBox(height: 20),
+            
+            // Skip Login Button für schnelles Testen
+            TextButton(
+              onPressed: () {
+                Navigator.pushReplacementNamed(context, '/home');
+              },
+              child: const Text(
+                'Skip Login (Dev Mode)',
+                style: TextStyle(color: Colors.grey),
               ),
             ),
             const SizedBox(height: 24),
