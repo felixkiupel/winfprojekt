@@ -1,15 +1,22 @@
-// push_service.dart - Vereinfachter Push Service OHNE Firebase
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 import 'dart:async';
+import 'dart:io' show Platform;
+import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/material.dart';
+import 'package:timezone/timezone.dart' as tz;
+import 'package:timezone/data/latest.dart' as tz;
 
 class SimplePushService {
   static final SimplePushService _instance = SimplePushService._internal();
   factory SimplePushService() => _instance;
-  SimplePushService._internal();
+  SimplePushService._internal() {
+    // Initialize timezone
+    tz.initializeTimeZones();
+  }
 
   final FlutterLocalNotificationsPlugin _localNotifications = FlutterLocalNotificationsPlugin();
   
@@ -17,12 +24,34 @@ class SimplePushService {
   String? _currentUserId;
   StreamController<Map<String, dynamic>>? _messageController;
   
-  // API Configuration - ÄNDERE DIESE FÜR DEIN SETUP
-  static const String API_BASE_URL = 'http://localhost:8000'; // Für Web/Desktop
-  // static const String API_BASE_URL = 'http://10.0.2.2:8000'; // Für Android Emulator
-  // static const String API_BASE_URL = 'http://DEINE_IP:8000'; // Für echtes Gerät
+  // Notification Settings
+  bool _notificationsEnabled = true;
+  bool _soundEnabled = true;
+  bool _vibrationEnabled = true;
+  bool _headsUpEnabled = true;
+  String _notificationSound = 'default';
+  String _notificationImportance = 'high';
   
+  // Category Settings
+  bool _healthAlertsEnabled = true;
+  bool _communityUpdatesEnabled = true;
+  bool _appointmentRemindersEnabled = true;
+  bool _emergencyAlertsEnabled = true;
+  
+  // Quiet Hours
+  bool _quietHoursEnabled = false;
+  String _quietHoursStart = '22:00';
+  String _quietHoursEnd = '07:00';
+  
+  // API Configuration
+  static const String API_BASE_URL = 'http://localhost:8000';
   static String get WS_BASE_URL => API_BASE_URL.replaceFirst('http', 'ws');
+
+  // Notification Channel IDs
+  static const String CHANNEL_HIGH = 'medapp_high_importance';
+  static const String CHANNEL_DEFAULT = 'medapp_default';
+  static const String CHANNEL_LOW = 'medapp_low_importance';
+  static const String CHANNEL_EMERGENCY = 'medapp_emergency';
 
   // Message Stream
   Stream<Map<String, dynamic>> get messageStream {
@@ -30,26 +59,102 @@ class SimplePushService {
     return _messageController!.stream;
   }
 
-  // Initialize push notifications
+  // Initialize push notifications with enhanced settings
   Future<void> initialize({required String userId}) async {
     _currentUserId = userId;
     
-    // Initialize local notifications
+    // Load notification preferences
+    await _loadNotificationSettings();
+    
+    // Initialize local notifications with channels
     await _initializeLocalNotifications();
     
-    // Warte kurz bevor WebSocket verbindet (Server muss ready sein)
-    await Future.delayed(const Duration(seconds: 1));
+    // Request permissions
+    await _requestPermissions();
+    
+    // Setup background message handler
+    await _setupBackgroundMessageHandler();
     
     // Connect to WebSocket
     _connectWebSocket();
     
-    // Register device (für später)
+    // Register device
     await _registerDevice();
   }
 
-  // Initialize local notifications
+  // Load notification settings from SharedPreferences
+  Future<void> _loadNotificationSettings() async {
+    final prefs = await SharedPreferences.getInstance();
+    
+    _notificationsEnabled = prefs.getBool('notifications_enabled') ?? true;
+    _soundEnabled = prefs.getBool('notification_sound_enabled') ?? true;
+    _vibrationEnabled = prefs.getBool('notification_vibration_enabled') ?? true;
+    _headsUpEnabled = prefs.getBool('notification_heads_up_enabled') ?? true;
+    _notificationSound = prefs.getString('notification_sound') ?? 'default';
+    _notificationImportance = prefs.getString('notification_importance') ?? 'high';
+    
+    // Category settings
+    _healthAlertsEnabled = prefs.getBool('health_alerts_enabled') ?? true;
+    _communityUpdatesEnabled = prefs.getBool('community_updates_enabled') ?? true;
+    _appointmentRemindersEnabled = prefs.getBool('appointment_reminders_enabled') ?? true;
+    _emergencyAlertsEnabled = prefs.getBool('emergency_alerts_enabled') ?? true;
+    
+    // Quiet hours
+    _quietHoursEnabled = prefs.getBool('quiet_hours_enabled') ?? false;
+    _quietHoursStart = prefs.getString('quiet_hours_start') ?? '22:00';
+    _quietHoursEnd = prefs.getString('quiet_hours_end') ?? '07:00';
+  }
+
+  // Save notification settings
+  Future<void> saveNotificationSettings(Map<String, dynamic> settings) async {
+    final prefs = await SharedPreferences.getInstance();
+    
+    // Update local variables and save to preferences
+    settings.forEach((key, value) async {
+      switch (key) {
+        case 'notifications_enabled':
+          _notificationsEnabled = value as bool;
+          await prefs.setBool(key, value);
+          break;
+        case 'notification_sound_enabled':
+          _soundEnabled = value as bool;
+          await prefs.setBool(key, value);
+          break;
+        case 'notification_vibration_enabled':
+          _vibrationEnabled = value as bool;
+          await prefs.setBool(key, value);
+          break;
+        case 'notification_heads_up_enabled':
+          _headsUpEnabled = value as bool;
+          await prefs.setBool(key, value);
+          break;
+        case 'notification_sound':
+          _notificationSound = value as String;
+          await prefs.setString(key, value);
+          break;
+        case 'notification_importance':
+          _notificationImportance = value as String;
+          await prefs.setString(key, value);
+          break;
+        default:
+          if (value is bool) {
+            await prefs.setBool(key, value);
+          } else if (value is String) {
+            await prefs.setString(key, value);
+          }
+      }
+    });
+    
+    // Reinitialize notifications with new settings
+    await _initializeLocalNotifications();
+  }
+
+  // Initialize local notifications with multiple channels
   Future<void> _initializeLocalNotifications() async {
+    // Android initialization with multiple notification channels
     const AndroidInitializationSettings androidSettings = AndroidInitializationSettings('@mipmap/ic_launcher');
+    
+    // iOS/macOS initialization
     const DarwinInitializationSettings iosSettings = DarwinInitializationSettings(
       requestAlertPermission: true,
       requestBadgePermission: true,
@@ -59,14 +164,113 @@ class SimplePushService {
     const InitializationSettings initSettings = InitializationSettings(
       android: androidSettings,
       iOS: iosSettings,
+      macOS: iosSettings,
     );
     
     await _localNotifications.initialize(
       initSettings,
       onDidReceiveNotificationResponse: _onNotificationTapped,
+      onDidReceiveBackgroundNotificationResponse: _onBackgroundNotificationTapped,
     );
     
-    print('✅ Local notifications initialized');
+    // Create notification channels for Android
+    if (!kIsWeb && Platform.isAndroid) {
+      await _createNotificationChannels();
+    }
+    
+    print('✅ Enhanced local notifications initialized');
+  }
+
+  // Create Android notification channels
+  Future<void> _createNotificationChannels() async {
+    final androidPlugin = _localNotifications.resolvePlatformSpecificImplementation<
+        AndroidFlutterLocalNotificationsPlugin>();
+    
+    if (androidPlugin != null) {
+      // High importance channel
+      await androidPlugin.createNotificationChannel(
+        const AndroidNotificationChannel(
+          CHANNEL_HIGH,
+          'Wichtige Benachrichtigungen',
+          description: 'Gesundheitswarnungen und wichtige Updates',
+          importance: Importance.high,
+          playSound: true,
+          enableVibration: true,
+          enableLights: true,
+          ledColor: Color(0xFFFF0000),
+        ),
+      );
+      
+      // Default channel
+      await androidPlugin.createNotificationChannel(
+        const AndroidNotificationChannel(
+          CHANNEL_DEFAULT,
+          'Allgemeine Benachrichtigungen',
+          description: 'Community Updates und allgemeine Informationen',
+          importance: Importance.defaultImportance,
+          playSound: true,
+          enableVibration: true,
+        ),
+      );
+      
+      // Low importance channel
+      await androidPlugin.createNotificationChannel(
+        const AndroidNotificationChannel(
+          CHANNEL_LOW,
+          'Stille Benachrichtigungen',
+          description: 'Weniger wichtige Updates',
+          importance: Importance.low,
+          playSound: false,
+          enableVibration: false,
+        ),
+      );
+      
+      // Emergency channel
+      await androidPlugin.createNotificationChannel(
+        const AndroidNotificationChannel(
+          CHANNEL_EMERGENCY,
+          'Notfall-Benachrichtigungen',
+          description: 'Kritische Notfallwarnungen',
+          importance: Importance.max,
+          playSound: true,
+          enableVibration: true,
+          enableLights: true,
+          ledColor: Color(0xFFFF0000),
+        ),
+      );
+    }
+  }
+
+  // Request notification permissions
+  Future<void> _requestPermissions() async {
+    if (!kIsWeb) {
+      if (Platform.isIOS || Platform.isMacOS) {
+        await _localNotifications
+            .resolvePlatformSpecificImplementation<IOSFlutterLocalNotificationsPlugin>()
+            ?.requestPermissions(
+              alert: true,
+              badge: true,
+              sound: true,
+              critical: true, // For emergency notifications
+            );
+      } else if (Platform.isAndroid) {
+        final AndroidFlutterLocalNotificationsPlugin? androidPlugin =
+            _localNotifications.resolvePlatformSpecificImplementation<
+                AndroidFlutterLocalNotificationsPlugin>();
+        
+        // Request exact alarm permission for scheduled notifications
+        await androidPlugin?.requestExactAlarmsPermission();
+        
+        // Request notification permission (Android 13+)
+        await androidPlugin?.requestNotificationsPermission();
+      }
+    }
+  }
+
+  // Setup background message handler
+  Future<void> _setupBackgroundMessageHandler() async {
+    // This would integrate with firebase_messaging or similar
+    // For now, we'll handle background through WebSocket reconnection
   }
 
   // Handle notification tap
@@ -75,6 +279,13 @@ class SimplePushService {
       try {
         final data = json.decode(response.payload!);
         print('Notification tapped: $data');
+        
+        // Broadcast tap event
+        _messageController?.add({
+          'type': 'notification_tapped',
+          'data': data,
+        });
+        
         // TODO: Navigate to specific screen based on data
       } catch (e) {
         print('Error parsing notification payload: $e');
@@ -82,10 +293,79 @@ class SimplePushService {
     }
   }
 
+  // Handle background notification tap
+  @pragma('vm:entry-point')
+  static void _onBackgroundNotificationTapped(NotificationResponse response) {
+    // Handle notification tap when app is terminated
+    print('Background notification tapped: ${response.payload}');
+  }
+
+  // Check if within quiet hours
+  bool _isInQuietHours() {
+    if (!_quietHoursEnabled) return false;
+    
+    final now = DateTime.now();
+    final currentTime = '${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}';
+    
+    // Simple comparison (doesn't handle overnight quiet hours perfectly)
+    if (_quietHoursStart.compareTo(_quietHoursEnd) < 0) {
+      // Same day quiet hours (e.g., 09:00 - 17:00)
+      return currentTime.compareTo(_quietHoursStart) >= 0 && 
+             currentTime.compareTo(_quietHoursEnd) <= 0;
+    } else {
+      // Overnight quiet hours (e.g., 22:00 - 07:00)
+      return currentTime.compareTo(_quietHoursStart) >= 0 || 
+             currentTime.compareTo(_quietHoursEnd) <= 0;
+    }
+  }
+
+  // Should show notification based on category
+  bool _shouldShowNotification(String category) {
+    if (!_notificationsEnabled) return false;
+    
+    // Always show emergency alerts unless completely disabled
+    if (category == 'emergency' && _emergencyAlertsEnabled) {
+      return true;
+    }
+    
+    // Check quiet hours for non-emergency
+    if (_isInQuietHours()) {
+      return false;
+    }
+    
+    // Check category settings
+    switch (category) {
+      case 'health':
+        return _healthAlertsEnabled;
+      case 'community':
+        return _communityUpdatesEnabled;
+      case 'appointment':
+        return _appointmentRemindersEnabled;
+      default:
+        return true;
+    }
+  }
+
+  // Get notification channel based on priority and settings
+  String _getNotificationChannel(String priority, String category) {
+    if (category == 'emergency') {
+      return CHANNEL_EMERGENCY;
+    }
+    
+    switch (_notificationImportance) {
+      case 'high':
+        return CHANNEL_HIGH;
+      case 'low':
+        return CHANNEL_LOW;
+      default:
+        return CHANNEL_DEFAULT;
+    }
+  }
+
   // Register device
   Future<void> _registerDevice() async {
     try {
-      final deviceId = DateTime.now().millisecondsSinceEpoch.toString(); // Simple device ID
+      final deviceId = DateTime.now().millisecondsSinceEpoch.toString();
       
       final response = await http.post(
         Uri.parse('$API_BASE_URL/register-device'),
@@ -93,6 +373,12 @@ class SimplePushService {
         body: json.encode({
           'user_id': _currentUserId,
           'device_id': deviceId,
+          'platform': kIsWeb ? 'web' : Platform.operatingSystem,
+          'notification_settings': {
+            'enabled': _notificationsEnabled,
+            'sound': _soundEnabled,
+            'vibration': _vibrationEnabled,
+          }
         }),
       );
       
@@ -141,7 +427,6 @@ class SimplePushService {
       
     } catch (e) {
       print('Error connecting to WebSocket: $e');
-      // Retry nach 5 Sekunden
       Future.delayed(const Duration(seconds: 5), _connectWebSocket);
     }
   }
@@ -158,11 +443,18 @@ class SimplePushService {
         // Show local notification
         final notification = data['notification'];
         if (notification != null) {
-          _showNotification(
-            title: notification['title'] ?? 'MedApp',
-            body: notification['body'] ?? '',
-            payload: notification,
-          );
+          final category = notification['data']?['category'] ?? 'general';
+          final priority = notification['data']?['priority'] ?? 'normal';
+          
+          if (_shouldShowNotification(category)) {
+            _showEnhancedNotification(
+              title: notification['title'] ?? 'MedApp',
+              body: notification['body'] ?? '',
+              payload: notification,
+              category: category,
+              priority: priority,
+            );
+          }
         }
         break;
         
@@ -172,6 +464,8 @@ class SimplePushService {
         
       case 'unread_count':
         print('📊 Unread count: ${data['count']}');
+        // Update badge if supported
+        _updateBadge(data['count'] ?? 0);
         break;
         
       default:
@@ -179,30 +473,71 @@ class SimplePushService {
     }
   }
 
-  // Show local notification
-  Future<void> _showNotification({
+  // Show enhanced notification with all settings
+  Future<void> _showEnhancedNotification({
     required String title,
     required String body,
     Map<String, dynamic>? payload,
+    String category = 'general',
+    String priority = 'normal',
   }) async {
-    const AndroidNotificationDetails androidDetails = AndroidNotificationDetails(
-      'medapp_channel',
-      'MedApp Notifications',
-      channelDescription: 'Health updates and important messages',
-      importance: Importance.high,
-      priority: Priority.high,
+    final channelId = _getNotificationChannel(priority, category);
+    
+    // Android specific settings
+    final AndroidNotificationDetails androidDetails = AndroidNotificationDetails(
+      channelId,
+      channelId == CHANNEL_EMERGENCY ? 'Notfall-Benachrichtigungen' : 'MedApp Benachrichtigungen',
+      channelDescription: 'Gesundheitsupdates und wichtige Nachrichten',
+      importance: _getAndroidImportance(),
+      priority: _getAndroidPriority(priority),
+      playSound: _soundEnabled && !_isInQuietHours(),
+      enableVibration: _vibrationEnabled,
+      enableLights: true,
       showWhen: true,
+      styleInformation: BigTextStyleInformation(
+        body,
+        contentTitle: title,
+        summaryText: category == 'emergency' ? '🚨 NOTFALL' : null,
+      ),
+      // Custom sound (place sound file in android/app/src/main/res/raw/)
+      sound: _notificationSound == 'default' 
+        ? null 
+        : RawResourceAndroidNotificationSound(_notificationSound),
+      // Actions
+      actions: category == 'appointment' 
+        ? <AndroidNotificationAction>[
+            const AndroidNotificationAction(
+              'confirm',
+              'Bestätigen',
+              showsUserInterface: true,
+            ),
+            const AndroidNotificationAction(
+              'cancel',
+              'Absagen',
+              cancelNotification: true,
+            ),
+          ]
+        : null,
     );
     
-    const DarwinNotificationDetails iosDetails = DarwinNotificationDetails(
-      presentAlert: true,
+    // iOS specific settings
+    final DarwinNotificationDetails iosDetails = DarwinNotificationDetails(
+      presentAlert: _headsUpEnabled,
       presentBadge: true,
-      presentSound: true,
+      presentSound: _soundEnabled && !_isInQuietHours(),
+      sound: _notificationSound == 'default' ? null : '$_notificationSound.aiff',
+      badgeNumber: null, // Will be set separately
+      threadIdentifier: category, // Groups notifications by category
+      categoryIdentifier: category == 'appointment' ? 'APPOINTMENT_CATEGORY' : null,
+      interruptionLevel: category == 'emergency' 
+        ? InterruptionLevel.critical 
+        : InterruptionLevel.active,
     );
     
-    const NotificationDetails notificationDetails = NotificationDetails(
+    final NotificationDetails notificationDetails = NotificationDetails(
       android: androidDetails,
       iOS: iosDetails,
+      macOS: iosDetails,
     );
     
     await _localNotifications.show(
@@ -212,6 +547,48 @@ class SimplePushService {
       notificationDetails,
       payload: payload != null ? json.encode(payload) : null,
     );
+  }
+
+  // Get Android importance based on settings
+  Importance _getAndroidImportance() {
+    switch (_notificationImportance) {
+      case 'max':
+        return Importance.max;
+      case 'high':
+        return Importance.high;
+      case 'low':
+        return Importance.low;
+      case 'min':
+        return Importance.min;
+      default:
+        return Importance.defaultImportance;
+    }
+  }
+
+  // Get Android priority based on notification priority
+  Priority _getAndroidPriority(String priority) {
+    switch (priority) {
+      case 'urgent':
+      case 'emergency':
+        return Priority.max;
+      case 'high':
+        return Priority.high;
+      case 'low':
+        return Priority.low;
+      default:
+        return Priority.defaultPriority;
+    }
+  }
+
+  // Update app badge
+  Future<void> _updateBadge(int count) async {
+    if (!kIsWeb && (Platform.isIOS || Platform.isMacOS)) {
+      // iOS/macOS badge update
+      await _localNotifications
+          .resolvePlatformSpecificImplementation<IOSFlutterLocalNotificationsPlugin>()
+          ?.requestPermissions(badge: true);
+    }
+    // Note: Android badges are handled automatically by the system
   }
 
   // Start ping timer
@@ -228,6 +605,92 @@ class SimplePushService {
         timer.cancel();
       }
     });
+  }
+
+  // Schedule a notification
+  Future<void> scheduleNotification({
+    required String title,
+    required String body,
+    required DateTime scheduledDate,
+    String category = 'appointment',
+    Map<String, dynamic>? payload,
+  }) async {
+    if (!_shouldShowNotification(category)) return;
+    
+    // Convert DateTime to TZDateTime
+    final tz.TZDateTime tzScheduledDate = tz.TZDateTime.from(
+      scheduledDate,
+      tz.local,
+    );
+    
+    await _localNotifications.zonedSchedule(
+      DateTime.now().millisecondsSinceEpoch ~/ 1000,
+      title,
+      body,
+      tzScheduledDate,
+      NotificationDetails(
+        android: AndroidNotificationDetails(
+          _getNotificationChannel('high', category),
+          'Geplante Benachrichtigungen',
+          channelDescription: 'Terminerinnerungen und geplante Updates',
+          importance: Importance.high,
+          priority: Priority.high,
+        ),
+        iOS: const DarwinNotificationDetails(),
+      ),
+      androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+      uiLocalNotificationDateInterpretation:
+          UILocalNotificationDateInterpretation.absoluteTime,
+      payload: payload != null ? json.encode(payload) : null,
+    );
+  }
+
+  // Cancel a scheduled notification
+  Future<void> cancelScheduledNotification(int id) async {
+    await _localNotifications.cancel(id);
+  }
+
+  // Get pending notifications
+  Future<List<PendingNotificationRequest>> getPendingNotifications() async {
+    return await _localNotifications.pendingNotificationRequests();
+  }
+
+  // Test notification with different priorities
+  Future<void> sendTestNotification({String priority = 'normal'}) async {
+    await _showEnhancedNotification(
+      title: 'Test Notification',
+      body: 'Dies ist eine Test-Benachrichtigung mit Priorität: $priority',
+      payload: {
+        'type': 'test',
+        'priority': priority,
+        'timestamp': DateTime.now().toIso8601String()
+      },
+      category: 'test',
+      priority: priority,
+    );
+  }
+
+  // Send emergency notification
+  Future<void> sendEmergencyNotification({
+    required String title,
+    required String body,
+    Map<String, dynamic>? data,
+  }) async {
+    // Emergency notifications bypass all settings except global disable
+    if (!_emergencyAlertsEnabled) return;
+    
+    await _showEnhancedNotification(
+      title: '🚨 NOTFALL: $title',
+      body: body,
+      payload: {
+        ...?data,
+        'type': 'emergency',
+        'priority': 'emergency',
+        'timestamp': DateTime.now().toIso8601String(),
+      },
+      category: 'emergency',
+      priority: 'emergency',
+    );
   }
 
   // Get messages from API
@@ -269,17 +732,7 @@ class SimplePushService {
     if (_channel != null && _currentUserId != null) {
       _channel!.sink.add(json.encode({"type": "get_unread_count"}));
     }
-    // Return cached value or fetch from API
     return 0;
-  }
-
-  // Send test notification (für Testing)
-  Future<void> sendTestNotification() async {
-    await _showNotification(
-      title: 'Test Notification',
-      body: 'Dies ist eine Test-Benachrichtigung von MedApp',
-      payload: {'type': 'test', 'timestamp': DateTime.now().toIso8601String()},
-    );
   }
 
   // Disconnect
