@@ -22,6 +22,7 @@ class SimplePushService {
   
   WebSocketChannel? _channel;
   String? _currentUserId;
+  String? _currentCommunity;
   StreamController<Map<String, dynamic>>? _messageController;
   
   // Notification Settings
@@ -53,18 +54,31 @@ class SimplePushService {
   static const String CHANNEL_LOW = 'medapp_low_importance';
   static const String CHANNEL_EMERGENCY = 'medapp_emergency';
 
+  // Available Communities
+  static const Map<String, String> communities = {
+    'all_communities': 'All Communities',
+    'aboriginal_health': 'Aboriginal Health',
+    'torres_strait': 'Torres Strait',
+    'remote_communities': 'Remote Communities',
+    'urban_indigenous': 'Urban Indigenous',
+  };
+
   // Message Stream
   Stream<Map<String, dynamic>> get messageStream {
     _messageController ??= StreamController<Map<String, dynamic>>.broadcast();
     return _messageController!.stream;
   }
 
+  // Get current community
+  String get currentCommunity => _currentCommunity ?? 'all_communities';
+
   // Initialize push notifications with enhanced settings
   Future<void> initialize({required String userId}) async {
     _currentUserId = userId;
     
-    // Load notification preferences
+    // Load notification preferences and community
     await _loadNotificationSettings();
+    await _loadUserCommunity();
     
     // Initialize local notifications with channels
     await _initializeLocalNotifications();
@@ -78,8 +92,65 @@ class SimplePushService {
     // Connect to WebSocket
     _connectWebSocket();
     
-    // Register device
+    // Register device with community
     await _registerDevice();
+  }
+
+  // Load user's community preference
+  Future<void> _loadUserCommunity() async {
+    final prefs = await SharedPreferences.getInstance();
+    _currentCommunity = prefs.getString('selected_community') ?? 'all_communities';
+  }
+
+  // Update user's community
+  Future<void> updateUserCommunity(String communityId) async {
+    if (!communities.containsKey(communityId)) return;
+    
+    _currentCommunity = communityId;
+    
+    // Save to preferences
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('selected_community', communityId);
+    
+    // Update on server
+    if (_currentUserId != null) {
+      try {
+        final response = await http.put(
+          Uri.parse('$API_BASE_URL/user/community'),
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer ${await _getAuthToken()}',
+          },
+          body: json.encode({
+            'user_id': _currentUserId,
+            'community_id': communityId,
+          }),
+        );
+        
+        if (response.statusCode == 200) {
+          print('✅ Community updated to: $communityId');
+          
+          // Notify via WebSocket if connected
+          if (_channel != null) {
+            _channel!.sink.add(json.encode({
+              "type": "update_community",
+              "community_id": communityId,
+            }));
+          }
+        }
+      } catch (e) {
+        print('Error updating community: $e');
+      }
+    }
+    
+    // Re-register device with new community
+    await _registerDevice();
+  }
+
+  // Get auth token (stub - implement proper auth)
+  Future<String> _getAuthToken() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString('auth_token') ?? 'test_token';
   }
 
   // Load notification settings from SharedPreferences
@@ -362,7 +433,7 @@ class SimplePushService {
     }
   }
 
-  // Register device
+  // Register device with community
   Future<void> _registerDevice() async {
     try {
       final deviceId = DateTime.now().millisecondsSinceEpoch.toString();
@@ -373,6 +444,7 @@ class SimplePushService {
         body: json.encode({
           'user_id': _currentUserId,
           'device_id': deviceId,
+          'community_id': _currentCommunity,
           'platform': kIsWeb ? 'web' : Platform.operatingSystem,
           'notification_settings': {
             'enabled': _notificationsEnabled,
@@ -383,7 +455,7 @@ class SimplePushService {
       );
       
       if (response.statusCode == 200) {
-        print('✅ Device registered successfully');
+        print('✅ Device registered successfully for community: $_currentCommunity');
       }
     } catch (e) {
       print('Error registering device: $e');
@@ -445,27 +517,40 @@ class SimplePushService {
         if (notification != null) {
           final category = notification['data']?['category'] ?? 'general';
           final priority = notification['data']?['priority'] ?? 'normal';
+          final messageCommunity = notification['community_id'] ?? 'all_communities';
           
-          if (_shouldShowNotification(category)) {
-            _showEnhancedNotification(
-              title: notification['title'] ?? 'MedApp',
-              body: notification['body'] ?? '',
-              payload: notification,
-              category: category,
-              priority: priority,
-            );
+          // Check if message is for user's community
+          if (messageCommunity == 'all_communities' || 
+              messageCommunity == _currentCommunity ||
+              _currentCommunity == 'all_communities') {
+            if (_shouldShowNotification(category)) {
+              _showEnhancedNotification(
+                title: notification['title'] ?? 'MedApp',
+                body: notification['body'] ?? '',
+                payload: notification,
+                category: category,
+                priority: priority,
+                community: messageCommunity,
+              );
+            }
           }
         }
         break;
         
       case 'connected':
         print('✅ WebSocket connected: ${data['message']}');
+        print('👥 Current community: ${data['community']}');
         break;
         
       case 'unread_count':
-        print('📊 Unread count: ${data['count']}');
+        print('📊 Unread count: ${data['count']} for community: ${data['community']}');
         // Update badge if supported
         _updateBadge(data['count'] ?? 0);
+        break;
+        
+      case 'community_updated':
+        print('👥 Community updated to: ${data['community_id']}');
+        _currentCommunity = data['community_id'];
         break;
         
       default:
@@ -480,8 +565,16 @@ class SimplePushService {
     Map<String, dynamic>? payload,
     String category = 'general',
     String priority = 'normal',
+    String? community,
   }) async {
     final channelId = _getNotificationChannel(priority, category);
+    
+    // Add community badge to title if not from all communities
+    String displayTitle = title;
+    if (community != null && community != 'all_communities') {
+      final communityName = communities[community] ?? community;
+      displayTitle = '[$communityName] $title';
+    }
     
     // Android specific settings
     final AndroidNotificationDetails androidDetails = AndroidNotificationDetails(
@@ -496,7 +589,7 @@ class SimplePushService {
       showWhen: true,
       styleInformation: BigTextStyleInformation(
         body,
-        contentTitle: title,
+        contentTitle: displayTitle,
         summaryText: category == 'emergency' ? '🚨 NOTFALL' : null,
       ),
       // Custom sound (place sound file in android/app/src/main/res/raw/)
@@ -542,7 +635,7 @@ class SimplePushService {
     
     await _localNotifications.show(
       DateTime.now().millisecondsSinceEpoch ~/ 1000,
-      title,
+      displayTitle,
       body,
       notificationDetails,
       payload: payload != null ? json.encode(payload) : null,
@@ -607,6 +700,87 @@ class SimplePushService {
     });
   }
 
+  // Get messages from API with community filter
+  Future<List<Map<String, dynamic>>> getMessages({int limit = 20}) async {
+    try {
+      final uri = Uri.parse('$API_BASE_URL/messages').replace(
+        queryParameters: {
+          'limit': limit.toString(),
+          'user_id': _currentUserId,
+          'community': _currentCommunity,
+        },
+      );
+      
+      final response = await http.get(uri);
+      
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        return List<Map<String, dynamic>>.from(data['messages']);
+      }
+    } catch (e) {
+      print('Error fetching messages: $e');
+    }
+    return [];
+  }
+
+  // Get available communities
+  Future<List<Map<String, dynamic>>> getAvailableCommunities() async {
+    try {
+      final response = await http.get(
+        Uri.parse('$API_BASE_URL/communities'),
+      );
+      
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        return List<Map<String, dynamic>>.from(data['communities']);
+      }
+    } catch (e) {
+      print('Error fetching communities: $e');
+    }
+    return [];
+  }
+
+  // Get message statistics by community
+  Future<Map<String, dynamic>> getMessageStats() async {
+    try {
+      final response = await http.get(
+        Uri.parse('$API_BASE_URL/messages/stats'),
+      );
+      
+      if (response.statusCode == 200) {
+        return json.decode(response.body);
+      }
+    } catch (e) {
+      print('Error fetching message stats: $e');
+    }
+    return {};
+  }
+
+  // Mark message as read
+  Future<void> markMessageAsRead(String messageId) async {
+    try {
+      final response = await http.post(
+        Uri.parse('$API_BASE_URL/messages/$messageId/read'),
+        headers: {'Content-Type': 'application/json'},
+        body: json.encode(_currentUserId),
+      );
+      
+      if (response.statusCode == 200) {
+        print('✅ Message marked as read');
+      }
+    } catch (e) {
+      print('Error marking message as read: $e');
+    }
+  }
+
+  // Get unread count
+  Future<int> getUnreadCount() async {
+    if (_channel != null && _currentUserId != null) {
+      _channel!.sink.add(json.encode({"type": "get_unread_count"}));
+    }
+    return 0;
+  }
+
   // Schedule a notification
   Future<void> scheduleNotification({
     required String title,
@@ -614,8 +788,14 @@ class SimplePushService {
     required DateTime scheduledDate,
     String category = 'appointment',
     Map<String, dynamic>? payload,
+    String? community,
   }) async {
     if (!_shouldShowNotification(category)) return;
+    
+    // Add community to payload
+    if (payload != null && community != null) {
+      payload['community_id'] = community;
+    }
     
     // Convert DateTime to TZDateTime
     final tz.TZDateTime tzScheduledDate = tz.TZDateTime.from(
@@ -663,10 +843,12 @@ class SimplePushService {
       payload: {
         'type': 'test',
         'priority': priority,
+        'community_id': _currentCommunity,
         'timestamp': DateTime.now().toIso8601String()
       },
       category: 'test',
       priority: priority,
+      community: _currentCommunity,
     );
   }
 
@@ -675,6 +857,7 @@ class SimplePushService {
     required String title,
     required String body,
     Map<String, dynamic>? data,
+    String? community,
   }) async {
     // Emergency notifications bypass all settings except global disable
     if (!_emergencyAlertsEnabled) return;
@@ -686,53 +869,48 @@ class SimplePushService {
         ...?data,
         'type': 'emergency',
         'priority': 'emergency',
+        'community_id': community ?? _currentCommunity,
         'timestamp': DateTime.now().toIso8601String(),
       },
       category: 'emergency',
       priority: 'emergency',
+      community: community,
     );
   }
 
-  // Get messages from API
-  Future<List<Map<String, dynamic>>> getMessages({int limit = 20}) async {
-    try {
-      final response = await http.get(
-        Uri.parse('$API_BASE_URL/messages?limit=$limit'),
-      );
-      
-      if (response.statusCode == 200) {
-        final data = json.decode(response.body);
-        return List<Map<String, dynamic>>.from(data['messages']);
-      }
-    } catch (e) {
-      print('Error fetching messages: $e');
-    }
-    return [];
-  }
-
-  // Mark message as read
-  Future<void> markMessageAsRead(String messageId) async {
+  // Send push notification with community targeting
+  Future<void> sendCommunityNotification({
+    required String title,
+    required String body,
+    required String communityId,
+    String priority = 'normal',
+    Map<String, dynamic>? data,
+  }) async {
     try {
       final response = await http.post(
-        Uri.parse('$API_BASE_URL/messages/$messageId/read'),
-        headers: {'Content-Type': 'application/json'},
-        body: json.encode(_currentUserId),
+        Uri.parse('$API_BASE_URL/send-push'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ${await _getAuthToken()}',
+        },
+        body: json.encode({
+          'title': title,
+          'body': body,
+          'community_id': communityId,
+          'data': {
+            ...?data,
+            'priority': priority,
+          },
+          'broadcast': true,
+        }),
       );
       
       if (response.statusCode == 200) {
-        print('✅ Message marked as read');
+        print('✅ Community notification sent to: $communityId');
       }
     } catch (e) {
-      print('Error marking message as read: $e');
+      print('Error sending community notification: $e');
     }
-  }
-
-  // Get unread count
-  Future<int> getUnreadCount() async {
-    if (_channel != null && _currentUserId != null) {
-      _channel!.sink.add(json.encode({"type": "get_unread_count"}));
-    }
-    return 0;
   }
 
   // Disconnect
