@@ -10,5 +10,5 @@ MONGO_URI = os.getenv("MONGO_URI")
 
 # Verbindung zur Datenbank
 client = MongoClient(MONGO_URI)
-db = client["med-app"]  # kannst du beliebig benennen
+db = client["med-app"]
 users_collection = db["users"]
