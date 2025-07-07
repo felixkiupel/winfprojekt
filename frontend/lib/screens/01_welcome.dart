@@ -78,7 +78,6 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                   icon: const Icon(Icons.person_add, color: Colors.white),
                   label: const Text('Create Account'),
                   onPressed: () {
-                    // Tippen navigiert zum HomeScreen (als Beispiel für Create Account)
                     Navigator.push(
                       context,
                       MaterialPageRoute(builder: (_) => RegistrationScreen()),
@@ -116,7 +115,6 @@ class _WelcomeScreenState extends State<WelcomeScreen>
               Center(
                 child: TextButton(
                   onPressed: () {
-                    // TODO: Bei Bedarf Support-Logik einfügen
                   },
                   child: const Text(
                     'Need help? Contact support',

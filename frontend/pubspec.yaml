@@ -39,6 +39,14 @@ dependencies:
   google_fonts: ^4.0.4
 
 
+  geolocator: ^10.0.0        # Standort
+  flutter_map: ^6.1.0        # OSM-Karte
+  latlong2: ^0.9.1           # Koordinaten
+  flutter_animate: ^4.5.0    # Fancy-Animationen
+  lottie: ^3.0.0             # Lottie-Animation
+
+
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
@@ -46,3 +54,4 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '07_SosScreen.dart';
 
 class HomeScreenTemplate extends StatefulWidget {
   const HomeScreenTemplate({super.key});
@@ -64,6 +65,32 @@ class _HomeScreenTemplateState extends State<HomeScreenTemplate> {
                 // Navigator.push(…)
               },
             ),
+            ListTile(
+              leading: const Icon(Icons.local_pharmacy),
+              title: Text("Medicament's Achievements", style: GoogleFonts.lato()),
+              onTap: () {
+                // Logout logic TODO: Gamification / Medicament's
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.offline_pin),
+              title: Text('Offline Documents', style: GoogleFonts.lato()),
+              onTap: () {
+                // Logout logic TODO: OffLogoutline Caching
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.warning_amber_rounded),
+              title: Text('SOS GEO Localisation', style: GoogleFonts.lato()),
+              onTap: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => const SOSScreen(),   // ← dein Screen
+                  ),
+                );
+              },
+            ),
+
             ListTile(
               leading: const Icon(Icons.logout),
               title: Text('Logout', style: GoogleFonts.lato()),
