@@ -45,5 +45,8 @@
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
+	<!-- Für die Ortungsdienste -->
+    <key>NSLocationWhenInUseUsageDescription</key>
+    <string>Ihre Position wird benötigt, um im Notfall Hilfe zu senden.</string>
 </dict>
 </plist>

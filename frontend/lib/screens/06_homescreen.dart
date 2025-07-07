@@ -84,12 +84,11 @@ class _HomeScreenTemplateState extends State<HomeScreenTemplate> {
               title: Text('SOS GEO Localisation', style: GoogleFonts.lato()),
               onTap: () {
                 Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (_) => const SOSScreen(),   // ← dein Screen
-                  ),
+                  MaterialPageRoute(builder: (_) => const SOSScreen()),
                 );
               },
             ),
+
 
             ListTile(
               leading: const Icon(Icons.logout),
