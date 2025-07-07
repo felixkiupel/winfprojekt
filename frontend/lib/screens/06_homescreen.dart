@@ -10,6 +10,45 @@ class HomeScreenTemplate extends StatefulWidget {
 }
 
 class _HomeScreenTemplateState extends State<HomeScreenTemplate> {
+  int _unreadCount = 0;
+  String _selectedCommunity = 'all_communities';
+  
+  @override
+  void initState() {
+    super.initState();
+    _initializePushService();
+    _loadCommunityPreference();
+    _listenToPushMessages();
+  }
+  
+  Future<void> _initializePushService() async {
+    final prefs = await SharedPreferences.getInstance();
+    final userId = prefs.getString('user_id') ?? 'test_user';
+    
+    // Initialize push service if notifications are enabled
+    final pushEnabled = prefs.getBool('push_notifications_enabled') ?? true;
+    if (pushEnabled) {
+      await SimplePushService().initialize(userId: userId);
+    }
+  }
+  
+  Future<void> _loadCommunityPreference() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      _selectedCommunity = prefs.getString('selected_community') ?? 'all_communities';
+    });
+  }
+  
+  void _listenToPushMessages() {
+    SimplePushService().messageStream.listen((message) {
+      if (message['type'] == 'unread_count') {
+        setState(() {
+          _unreadCount = message['count'] ?? 0;
+        });
+      }
+    });
+  }
+  
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -25,6 +64,56 @@ class _HomeScreenTemplateState extends State<HomeScreenTemplate> {
         backgroundColor: Colors.black,
         elevation: 4,
         centerTitle: true,
+        actions: [
+          Stack(
+            children: [
+              IconButton(
+                icon: const Icon(Icons.notifications, color: Colors.white),
+                onPressed: () {
+                  // Navigate to notifications screen
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Notifications screen coming soon')),
+                  );
+                },
+              ),
+              if (_unreadCount > 0)
+                Positioned(
+                  right: 8,
+                  top: 8,
+                  child: Container(
+                    padding: const EdgeInsets.all(2),
+                    decoration: BoxDecoration(
+                      color: Colors.red,
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    constraints: const BoxConstraints(
+                      minWidth: 20,
+                      minHeight: 20,
+                    ),
+                    child: Center(
+                      child: Text(
+                        '$_unreadCount',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+            ],
+          ),
+          IconButton(
+            icon: const Icon(Icons.settings, color: Colors.white),
+            onPressed: () {
+              Navigator.pushNamed(context, '/settings').then((_) {
+                // Reload community preference when returning from settings
+                _loadCommunityPreference();
+              });
+            },
+          ),
+        ],
       ),
 
       drawer: Drawer(
@@ -34,13 +123,20 @@ class _HomeScreenTemplateState extends State<HomeScreenTemplate> {
             DrawerHeader(
               decoration: const BoxDecoration(color: Colors.black),
               child: Center(
-                child: Text(
-                  'Menu',
-                  style: GoogleFonts.lato(
-                    color: Colors.white,
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
-                  ),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Icon(Icons.local_hospital, color: Colors.white, size: 60),
+                    const SizedBox(height: 10),
+                    Text(
+                      'MedApp Menu',
+                      style: GoogleFonts.lato(
+                        color: Colors.white,
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ),
@@ -55,14 +151,39 @@ class _HomeScreenTemplateState extends State<HomeScreenTemplate> {
               leading: const Icon(Icons.person),
               title: Text('Profile', style: GoogleFonts.lato()),
               onTap: () {
-                // Navigator.push(…)
+                Navigator.pop(context);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Profile screen coming soon')),
+                );
               },
             ),
+            ListTile(
+              leading: const Icon(Icons.medical_services),
+              title: Text('Health Records', style: GoogleFonts.lato()),
+              onTap: () {
+                Navigator.pop(context);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Health Records coming soon')),
+                );
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.calendar_today),
+              title: Text('Appointments', style: GoogleFonts.lato()),
+              onTap: () {
+                Navigator.pop(context);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Appointments coming soon')),
+                );
+              },
+            ),
+            const Divider(),
             ListTile(
               leading: const Icon(Icons.settings),
               title: Text('Settings', style: GoogleFonts.lato()),
               onTap: () {
-                // Navigator.push(…)
+                Navigator.pop(context);
+                Navigator.pushNamed(context, '/settings');
               },
             ),
             ListTile(
@@ -95,7 +216,32 @@ class _HomeScreenTemplateState extends State<HomeScreenTemplate> {
               leading: const Icon(Icons.logout),
               title: Text('Logout', style: GoogleFonts.lato()),
               onTap: () {
-                // Logout logic
+                Navigator.pop(context);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Help & Support coming soon')),
+                );
+              },
+            ),
+            const Divider(),
+            ListTile(
+              leading: const Icon(Icons.logout, color: Colors.red),
+              title: Text('Logout', style: GoogleFonts.lato(color: Colors.red)),
+              onTap: () async {
+                // Clear user data
+                final prefs = await SharedPreferences.getInstance();
+                await prefs.clear();
+                
+                // Disconnect push service
+                SimplePushService().disconnect();
+                
+                // Navigate to login
+                if (context.mounted) {
+                  Navigator.pushNamedAndRemoveUntil(
+                    context,
+                    '/login',
+                    (route) => false,
+                  );
+                }
               },
             ),
           ],
@@ -118,6 +264,25 @@ class _HomeScreenTemplateState extends State<HomeScreenTemplate> {
                 ),
                 textAlign: TextAlign.center,
               ),
+              const SizedBox(height: 8),
+              
+              // Community indicator
+              if (_selectedCommunity != 'all_communities')
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: Colors.green.shade100,
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Text(
+                    'Community: ${_getCommunityName(_selectedCommunity)}',
+                    style: GoogleFonts.lato(
+                      fontSize: 14,
+                      color: Colors.green.shade800,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ),
               const SizedBox(height: 24),
 
               Row(
@@ -128,6 +293,9 @@ class _HomeScreenTemplateState extends State<HomeScreenTemplate> {
                     label: 'Medical',
                     color: Colors.green.shade600,
                     onTap: () {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Medical services coming soon')),
+                      );
                     },
                   ),
                   _FeatureCard(
@@ -135,15 +303,20 @@ class _HomeScreenTemplateState extends State<HomeScreenTemplate> {
                     label: 'Statistics',
                     color: Colors.blue.shade600,
                     onTap: () {
-                      // Action
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Health statistics coming soon')),
+                      );
                     },
                   ),
                   _FeatureCard(
                     icon: Icons.notifications,
-                    label: 'Notifications',
+                    label: 'Alerts',
                     color: Colors.red.shade600,
+                    badge: _unreadCount > 0 ? '$_unreadCount' : null,
                     onTap: () {
-                      // Action
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Health alerts coming soon')),
+                      );
                     },
                   ),
                 ],
@@ -160,38 +333,77 @@ class _HomeScreenTemplateState extends State<HomeScreenTemplate> {
               ),
               const SizedBox(height: 16),
               _ActivityTile(
-                title: 'QR code scanned',
+                title: 'Settings updated',
+                subtitle: 'Just now',
+                icon: Icons.settings,
+              ),
+              _ActivityTile(
+                title: 'Push notification received',
                 subtitle: '5 minutes ago',
-                icon: Icons.qr_code_scanner,
+                icon: Icons.notifications,
               ),
               _ActivityTile(
-                title: 'Password changed',
-                subtitle: 'Yesterday, 2:30 PM',
-                icon: Icons.lock_reset,
-              ),
-              _ActivityTile(
-                title: 'New document uploaded',
-                subtitle: '2 days ago',
-                icon: Icons.upload_file,
+                title: 'Community selected',
+                subtitle: 'Today',
+                icon: Icons.group,
               ),
               const SizedBox(height: 32),
 
-              // Bottom button to add a new action
+              // Quick Actions
+              Text(
+                'Quick Actions',
+                style: GoogleFonts.lato(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: 16),
+              
+              // Test notification button
               ElevatedButton.icon(
-                onPressed: () {
-                  // Action: e.g. create a new task
+                onPressed: () async {
+                  await SimplePushService().sendTestNotification();
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Test notification sent!'),
+                      backgroundColor: Colors.green,
+                    ),
+                  );
                 },
-                icon: const Icon(Icons.add),
+                icon: const Icon(Icons.notifications_active),
                 label: Text(
-                  'New Action',
+                  'Send Test Notification',
                   style: GoogleFonts.lato(
-                    fontSize: 18,
+                    fontSize: 16,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.black,
-                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  backgroundColor: Colors.blue,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                ),
+              ),
+              
+              const SizedBox(height: 12),
+              
+              // Settings shortcut
+              OutlinedButton.icon(
+                onPressed: () {
+                  Navigator.pushNamed(context, '/settings');
+                },
+                icon: const Icon(Icons.settings),
+                label: Text(
+                  'Go to Settings',
+                  style: GoogleFonts.lato(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                style: OutlinedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 14),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(10),
                   ),
@@ -199,6 +411,81 @@ class _HomeScreenTemplateState extends State<HomeScreenTemplate> {
               ),
             ],
           ),
+        ),
+      ),
+      
+      // Floating Action Button for new actions
+      floatingActionButton: FloatingActionButton(
+        onPressed: () {
+          _showActionMenu(context);
+        },
+        backgroundColor: Colors.black,
+        child: const Icon(Icons.add, color: Colors.white),
+      ),
+    );
+  }
+  
+  String _getCommunityName(String communityId) {
+    final communities = {
+      'aboriginal_health': 'Aboriginal Health',
+      'torres_strait': 'Torres Strait',
+      'remote_communities': 'Remote Communities',
+      'urban_indigenous': 'Urban Indigenous',
+      'all_communities': 'All Communities',
+    };
+    return communities[communityId] ?? communityId;
+  }
+  
+  void _showActionMenu(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) => Container(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              'Quick Actions',
+              style: GoogleFonts.lato(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 20),
+            ListTile(
+              leading: const Icon(Icons.calendar_today),
+              title: Text('Book Appointment', style: GoogleFonts.lato()),
+              onTap: () {
+                Navigator.pop(context);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Appointment booking coming soon')),
+                );
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.medical_services),
+              title: Text('Health Check', style: GoogleFonts.lato()),
+              onTap: () {
+                Navigator.pop(context);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Health check feature coming soon')),
+                );
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.emergency),
+              title: Text('Emergency Contact', style: GoogleFonts.lato()),
+              onTap: () {
+                Navigator.pop(context);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Emergency contacts coming soon')),
+                );
+              },
+            ),
+          ],
         ),
       ),
     );
@@ -211,12 +498,14 @@ class _FeatureCard extends StatelessWidget {
   final String label;
   final Color color;
   final VoidCallback onTap;
+  final String? badge;
 
   const _FeatureCard({
     required this.icon,
     required this.label,
     required this.color,
     required this.onTap,
+    this.badge,
   });
 
   @override
@@ -231,20 +520,46 @@ class _FeatureCard extends StatelessWidget {
             color: color,
             borderRadius: BorderRadius.circular(12),
           ),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
+          child: Stack(
             children: [
-              Icon(icon, size: 40, color: Colors.white),
-              const SizedBox(height: 8),
-              Text(
-                label,
-                style: GoogleFonts.lato(
-                  color: Colors.white,
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
+              Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(icon, size: 40, color: Colors.white),
+                    const SizedBox(height: 8),
+                    Text(
+                      label,
+                      style: GoogleFonts.lato(
+                        color: Colors.white,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                  ],
                 ),
-                textAlign: TextAlign.center,
               ),
+              if (badge != null)
+                Positioned(
+                  top: 8,
+                  right: 8,
+                  child: Container(
+                    padding: const EdgeInsets.all(6),
+                    decoration: const BoxDecoration(
+                      color: Colors.white,
+                      shape: BoxShape.circle,
+                    ),
+                    child: Text(
+                      badge!,
+                      style: TextStyle(
+                        color: color,
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ),
             ],
           ),
         ),
@@ -252,7 +567,6 @@ class _FeatureCard extends StatelessWidget {
     );
   }
 }
-
 
 class _ActivityTile extends StatelessWidget {
   final String title;
