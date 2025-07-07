@@ -1,7 +1,16 @@
+
+/// ----------------------------------------------------
+/// Basis-URL: via
+///   flutter run --dart-define API_URL=https://dein.backend.de
+/// Default (Emulator) → http://10.0.2.2:8000
+
+import 'dart:convert';
+import 'dart:io' show Platform;
 import 'package:flutter/material.dart';
 import '02a_registration.dart';
 import 'package:google_fonts/google_fonts.dart';
-
+import 'package:http/http.dart' as http;
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -13,18 +22,26 @@ class LoginScreen extends StatefulWidget {
 class _LoginScreenState extends State<LoginScreen> {
   final TextEditingController emailController = TextEditingController();
   final TextEditingController passwordController = TextEditingController();
+  final FlutterSecureStorage _storage = const FlutterSecureStorage();
+
   bool _obscureText = true;
   bool _loading = false;
   String? _errorMessage;
+
+  // Basis‑URL: zuerst --dart-define, ansonsten automatisch ermitteln
+  final String _baseUrl = (() {
+    const envUrl = String.fromEnvironment('API_URL');
+    if (envUrl.isNotEmpty) return envUrl;
+    final host = Platform.isAndroid ? '10.0.2.2' : '127.0.0.1';
+    return 'http://$host:8000';
+  })();
 
   Future<void> _attemptLogin() async {
     final email = emailController.text.trim();
     final password = passwordController.text;
 
     if (email.isEmpty || password.isEmpty) {
-      setState(() {
-        _errorMessage = 'Bitte E-Mail und Passwort ausfüllen';
-      });
+      setState(() => _errorMessage = 'Bitte E-Mail und Passwort ausfüllen');
       return;
     }
 
@@ -33,24 +50,40 @@ class _LoginScreenState extends State<LoginScreen> {
       _errorMessage = null;
     });
 
-    // TODO: Hier  tatsächliche Login-Logik einfügen.
+    try {
+      final uri = Uri.parse('$_baseUrl/login');
+      final res = await http.post(
+        uri,
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'email': email, 'password': password}),
+      );
 
-    await Future.delayed(const Duration(seconds: 2));
+      if (res.statusCode == 200) {
+        final data = jsonDecode(res.body) as Map<String, dynamic>;
+        final token = data['access_token'] as String?;
+        if (token == null) throw Exception('Token fehlt');
 
-    // Beispiel: erfolgreiche Auth, direkt zum HomeScreen wechseln
-    setState(() {
-      _loading = false;
-    });
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(builder: (_) => RegistrationScreen()),
-    );
+        // JWT sicher speichern
+        await _storage.write(key: 'jwt', value: token);
 
-    // Wenn Login fehlschlägt, statt Navigator.pushReplacement:
-    // setState(() {
-    //   _loading = false;
-    //   _errorMessage = 'Ungültige Anmeldedaten';
-    // });
+        if (!mounted) return;
+        Navigator.pushReplacementNamed(context, '/home');
+      } else {
+        final msg = jsonDecode(res.body)['detail'] ?? 'Ungültige Anmeldedaten';
+        setState(() => _errorMessage = msg.toString());
+      }
+    } catch (e) {
+      setState(() => _errorMessage = 'Login fehlgeschlagen: $e');
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  @override
+  void dispose() {
+    emailController.dispose();
+    passwordController.dispose();
+    super.dispose();
   }
 
   @override
@@ -96,7 +129,6 @@ class _LoginScreenState extends State<LoginScreen> {
               controller: emailController,
               keyboardType: TextInputType.emailAddress,
               decoration: InputDecoration(
-                filled: false,
                 prefixIcon: const Icon(Icons.email_outlined),
                 labelText: 'Email',
                 labelStyle: GoogleFonts.lato(),
@@ -110,17 +142,10 @@ class _LoginScreenState extends State<LoginScreen> {
               controller: passwordController,
               obscureText: _obscureText,
               decoration: InputDecoration(
-                filled: false,
                 prefixIcon: const Icon(Icons.lock_outline),
                 suffixIcon: GestureDetector(
-                  onTap: () {
-                    setState(() {
-                      _obscureText = !_obscureText;
-                    });
-                  },
-                  child: Icon(
-                    _obscureText ? Icons.visibility : Icons.visibility_off,
-                  ),
+                  onTap: () => setState(() => _obscureText = !_obscureText),
+                  child: Icon(_obscureText ? Icons.visibility : Icons.visibility_off),
                 ),
                 labelText: 'Password',
                 labelStyle: GoogleFonts.lato(),
@@ -129,32 +154,27 @@ class _LoginScreenState extends State<LoginScreen> {
             ),
             const SizedBox(height: 12),
 
-            // Forgot password
+            // Forgot Password
             Align(
               alignment: Alignment.centerRight,
               child: TextButton(
                 onPressed: () {
-                  // TODO: „Passwort vergessen“-Logik hier einfügen
+                  // TODO: „Passwort vergessen“-Logik
                 },
                 child: Text(
                   'Forgot your password?',
-                  style: GoogleFonts.lato(
-                    color: Colors.grey,
-                  ),
+                  style: GoogleFonts.lato(color: Colors.grey),
                 ),
               ),
             ),
             const SizedBox(height: 16),
 
-            // Fehlermeldung (falls vorhanden)
+            // Fehlermeldung
             if (_errorMessage != null) ...[
               Text(
                 _errorMessage!,
                 textAlign: TextAlign.center,
-                style: TextStyle(
-                  color: Colors.red.shade700,
-                  fontSize: 14,
-                ),
+                style: TextStyle(color: Colors.red.shade700, fontSize: 14),
               ),
               const SizedBox(height: 16),
             ],
@@ -174,10 +194,7 @@ class _LoginScreenState extends State<LoginScreen> {
               child: const SizedBox(
                 height: 24,
                 width: 24,
-                child: CircularProgressIndicator(
-                  color: Colors.white,
-                  strokeWidth: 2,
-                ),
+                child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
               ),
             )
                 : ElevatedButton(
@@ -201,15 +218,12 @@ class _LoginScreenState extends State<LoginScreen> {
             ),
             const SizedBox(height: 16),
 
-            // Create Account-Button (jetzt funktional)
+            // Create Account
             OutlinedButton(
-              onPressed: () {
-                // Navigiere zur Registrierungsseite
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => RegistrationScreen()),
-                );
-              },
+              onPressed: () => Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const RegistrationScreen()),
+              ),
               style: OutlinedButton.styleFrom(
                 side: const BorderSide(color: Colors.black54),
                 padding: const EdgeInsets.symmetric(vertical: 16),
@@ -219,22 +233,15 @@ class _LoginScreenState extends State<LoginScreen> {
               ),
               child: Text(
                 'Create Account',
-                style: GoogleFonts.lato(
-                  color: Colors.black87,
-                  fontSize: 16,
-                ),
+                style: GoogleFonts.lato(color: Colors.black87, fontSize: 16),
               ),
             ),
             const SizedBox(height: 24),
 
-            // Kontakt-Support-Hinweis
             Center(
               child: Text(
                 'Need help? Contact support',
-                style: GoogleFonts.lato(
-                  fontSize: 14,
-                  color: Colors.black54,
-                ),
+                style: GoogleFonts.lato(fontSize: 14, color: Colors.black54),
               ),
             ),
           ],
