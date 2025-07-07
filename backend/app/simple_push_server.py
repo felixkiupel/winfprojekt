@@ -2,6 +2,7 @@
 Einfacher Push Notification Server für MedApp
 MIT Community-basierter Nachrichtenfilterung
 OHNE Firebase, OHNE Datenbank - nur WebSocket und REST API
+MIT User Delete Endpoint und 2FA
 """
 
 from fastapi import FastAPI, WebSocket, HTTPException, Body, Header, Depends, Query
@@ -75,6 +76,14 @@ class RequestDeleteAccount(BaseModel):
 class UserCommunityUpdate(BaseModel):
     user_id: str
     community_id: str
+
+class DeleteAccountRequest(BaseModel):
+    user_id: str
+    confirmation_code: str
+
+class RequestDeleteAccount(BaseModel):
+    user_id: str
+    email: EmailStr
 
 # In-Memory Storage (später MongoDB)
 websocket_connections: Dict[str, WebSocket] = {}
@@ -574,6 +583,138 @@ async def get_audit_log(
     token: str = Depends(verify_token)
 ):
     """Get audit log for deletions (admin only)"""
+    return {
+        "logs": audit_log[-limit:],
+        "total": len(audit_log)
+    }
+
+# User Deletion Endpoints
+@app.post("/user/request-delete")
+async def request_account_deletion(
+    request: RequestDeleteAccount,
+    token: str = Depends(verify_token)
+):
+    """Request account deletion - sends 2FA code"""
+    user_id = request.user_id
+    email = request.email
+    
+    # Generate confirmation code
+    code = generate_confirmation_code()
+    
+    # Store code with expiry (10 minutes)
+    deletion_codes[user_id] = {
+        "code": code,
+        "email": email,
+        "expiry": datetime.now() + timedelta(minutes=10),
+        "attempts": 0
+    }
+    
+    # Send email with code
+    send_email_code(email, code)
+    
+    # Log the request
+    audit_log.append({
+        "action": "deletion_requested",
+        "user_id": user_id,
+        "timestamp": datetime.now().isoformat(),
+        "ip": "127.0.0.1"  # In production, get real IP
+    })
+    
+    return {
+        "status": "success",
+        "message": "Confirmation code sent to email",
+        "expires_in": 600  # 10 minutes
+    }
+
+@app.delete("/user/delete")
+async def delete_account(
+    request: DeleteAccountRequest,
+    token: str = Depends(verify_token)
+):
+    """Delete user account with 2FA confirmation"""
+    user_id = request.user_id
+    confirmation_code = request.confirmation_code
+    
+    # Check if deletion code exists
+    if user_id not in deletion_codes:
+        raise HTTPException(
+            status_code=400,
+            detail="No deletion request found. Please request deletion first."
+        )
+    
+    code_data = deletion_codes[user_id]
+    
+    # Check expiry
+    if datetime.now() > code_data["expiry"]:
+        del deletion_codes[user_id]
+        raise HTTPException(
+            status_code=400,
+            detail="Confirmation code expired. Please request deletion again."
+        )
+    
+    # Check attempts (max 3)
+    if code_data["attempts"] >= 3:
+        del deletion_codes[user_id]
+        raise HTTPException(
+            status_code=429,
+            detail="Too many failed attempts. Please request deletion again."
+        )
+    
+    # Verify code
+    if confirmation_code != code_data["code"]:
+        deletion_codes[user_id]["attempts"] += 1
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid confirmation code. {3 - code_data['attempts']} attempts remaining."
+        )
+    
+    # Code is valid - proceed with deletion
+    logger.info(f"🗑️ Deleting all data for user: {user_id}")
+    
+    # Disconnect WebSocket
+    await manager.disconnect_user(user_id)
+    
+    # Delete all user data
+    deleted_stats = delete_all_user_data(user_id)
+    
+    # Remove deletion code
+    del deletion_codes[user_id]
+    
+    # Log the deletion
+    audit_entry = {
+        "action": "account_deleted",
+        "user_id": user_id,
+        "timestamp": datetime.now().isoformat(),
+        "deleted_items": deleted_stats,
+        "ip": "127.0.0.1"  # In production, get real IP
+    }
+    audit_log.append(audit_entry)
+    
+    # Send confirmation email
+    send_deletion_confirmation_email(code_data["email"], user_id)
+    
+    return {
+        "status": "success",
+        "message": "Account successfully deleted",
+        "deleted_items": deleted_stats,
+        "audit_id": len(audit_log) - 1
+    }
+
+def send_deletion_confirmation_email(email: str, user_id: str):
+    """Send confirmation email after account deletion"""
+    logger.info(f"📧 Deletion confirmation sent to {email}")
+    # In production, send actual email with:
+    # - Confirmation of deletion
+    # - Date and time
+    # - Contact info if deletion was not intended
+
+@app.get("/admin/audit-log")
+async def get_audit_log(
+    limit: int = 50,
+    token: str = Depends(verify_token)
+):
+    """Get audit log for deletions (admin only)"""
+    # In production, check if user is admin
     return {
         "logs": audit_log[-limit:],
         "total": len(audit_log)
