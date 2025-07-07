@@ -27,13 +27,6 @@ class _LoginScreenState extends State<LoginScreen> {
   bool _obscureText = true;
   bool _loading = false;
   String? _errorMessage;
-  
-  // Test users for quick login
-  final testUsers = [
-    {'email': 'test@medapp.com', 'password': 'test123', 'name': 'Test User'},
-    {'email': 'admin@medapp.com', 'password': 'admin123', 'name': 'Admin'},
-    {'email': 'demo@demo.com', 'password': 'demo', 'name': 'Demo User'},
-  ];
 
   // Basis‑URL: zuerst --dart-define, ansonsten automatisch ermitteln
   final String _baseUrl = (() {
@@ -130,37 +123,6 @@ class _LoginScreenState extends State<LoginScreen> {
               ),
             ),
             const SizedBox(height: 24),
-            
-            // Test User Info Box
-            Container(
-              padding: const EdgeInsets.all(16),
-              margin: const EdgeInsets.only(bottom: 20),
-              decoration: BoxDecoration(
-                color: Colors.blue.shade50,
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: Colors.blue.shade200),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    '🧪 Test-Benutzer:',
-                    style: TextStyle(fontWeight: FontWeight.bold),
-                  ),
-                  const SizedBox(height: 8),
-                  ...testUsers.map((user) => Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 2),
-                    child: Row(
-                      children: [
-                        const Icon(Icons.person, size: 16, color: Colors.grey),
-                        const SizedBox(width: 8),
-                        Text('${user['email']} / ${user['password']}'),
-                      ],
-                    ),
-                  )).toList(),
-                ],
-              ),
-            ),
 
             // E-Mail-Eingabe
             TextField(
@@ -179,7 +141,6 @@ class _LoginScreenState extends State<LoginScreen> {
             TextField(
               controller: passwordController,
               obscureText: _obscureText,
-              onSubmitted: (_) => _attemptLogin(),
               decoration: InputDecoration(
                 prefixIcon: const Icon(Icons.lock_outline),
                 suffixIcon: GestureDetector(
@@ -273,18 +234,6 @@ class _LoginScreenState extends State<LoginScreen> {
               child: Text(
                 'Create Account',
                 style: GoogleFonts.lato(color: Colors.black87, fontSize: 16),
-              ),
-            ),
-            const SizedBox(height: 20),
-            
-            // Skip Login Button für schnelles Testen
-            TextButton(
-              onPressed: () {
-                Navigator.pushReplacementNamed(context, '/home');
-              },
-              child: const Text(
-                'Skip Login (Dev Mode)',
-                style: TextStyle(color: Colors.grey),
               ),
             ),
             const SizedBox(height: 24),
