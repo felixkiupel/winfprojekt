@@ -174,35 +174,6 @@ async def send_fcm_notification(title: str, body: str, data: Dict[str, str], tok
 async def root():
     return {"message": "MedApp Push Service API", "version": "1.0.0"}
 
-@app.post("/register")
-async def register(user: RegisterRequest):
-    existing_user = users_collection.find_one({"email": user.email})
-    if existing_user:
-        raise HTTPException(status_code=400, detail="Benutzer mit dieser E-Mail existiert bereits.")
-    user_dict = user.dict()
-    user_dict["password"] = hash_password(user.password)
-    users_collection.insert_one(user_dict)
-    return {"success": True, "message": "Benutzer erfolgreich registriert."}
-
-@app.post("/login")
-async def login(credentials: LoginRequest):
-    user = users_collection.find_one({"email": credentials.email})
-    if not user or not verify_password(credentials.password, user["password"]):
-        raise HTTPException(status_code=400, detail="Ungültige Anmeldedaten.")
-    access_token = create_access_token(data={"sub": str(user["med_id"])})
-    user_out = {
-        "email": user["email"],
-        "firstname": user["firstname"],
-        "lastname": user["lastname"],
-        "med_id": user["med_id"]
-    }
-    return {
-        "success": True,
-        "message": "Login erfolgreich.",
-        "user": user_out,
-        "access_token": access_token,
-        "token_type": "bearer"
-    }
 
 @app.post("/register-fcm-token")
 async def register_fcm_token(token_data: FCMTokenRegistration, current_user: str = Depends(verify_token)):
