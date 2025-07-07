@@ -18,11 +18,8 @@ void main() async {
   runApp(const MyApp());
 }
 
-class MyApp extends StatefulWidget {
+class MyApp extends StatelessWidget {
   const MyApp({super.key});
-  @override
-  _MyAppState createState() => _MyAppState();
-}
 
   @override
   Widget build(BuildContext context) {
@@ -38,8 +35,6 @@ class MyApp extends StatefulWidget {
         '/login': (_) => const LoginScreen(),
         '/home': (_) => const HomeScreenTemplate(),
       },
-      initialRoute: '/',
-      debugShowCheckedModeBanner: false,
     );
   }
 
