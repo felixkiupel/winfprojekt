@@ -1,5 +1,5 @@
 from passlib.context import CryptContext
-from db import users_collection
+from backend.db import users_collection
 
 pwd_ctx = CryptContext(schemes=["bcrypt"])
 

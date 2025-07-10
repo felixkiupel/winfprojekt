@@ -21,7 +21,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-from db import users_collection
+from backend.db import users_collection
 
 # ---------- Konfiguration ----------
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")

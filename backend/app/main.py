@@ -4,7 +4,6 @@ from fastapi.security import OAuth2PasswordBearer
 from typing import List, Dict, Optional
 from datetime import datetime, timedelta
 import json
-import asyncio
 from contextlib import asynccontextmanager
 import firebase_admin
 from firebase_admin import credentials, messaging
@@ -14,7 +13,6 @@ import os
 from dotenv import load_dotenv
 import logging
 from passlib.context import CryptContext
-from db import users_collection  # MongoDB collection for users
 
 # Setup logging
 logging.basicConfig(level=logging.INFO)

@@ -48,5 +48,11 @@
 	<!-- Für die Ortungsdienste -->
     <key>NSLocationWhenInUseUsageDescription</key>
     <string>Ihre Position wird benötigt, um im Notfall Hilfe zu senden.</string>
+    <!-- Enable App File Sharing so the Documents-Ordner in der Dateien-App erscheint -->
+    <key>UIFileSharingEnabled</key>
+    <true/>
+    <!-- Allow Opening Documents In Place (für iCloud/Dateien-App) -->
+    <key>LSSupportsOpeningDocumentsInPlace</key>
+    <true/>
 </dict>
 </plist>

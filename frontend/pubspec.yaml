@@ -45,10 +45,10 @@ dependencies:
   flutter_animate: ^4.5.0    # Fancy-Animationen
   lottie: ^3.0.0
   geocoding: ^3.0.0
-  share_plus: ^9.0.0
   vibration: ^1.8.4
-  audioplayers: ^5.2.0
   awesome_snackbar_content: ^0.1.0
+  path_provider: ^2.0.0
+  share_plus: ^10.0.0
 
 
 

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '07_SosScreen.dart';
+import '08_MedicalDocumentScreen.dart';
 
 class HomeScreenTemplate extends StatefulWidget {
   const HomeScreenTemplate({super.key});
@@ -76,12 +77,14 @@ class _HomeScreenTemplateState extends State<HomeScreenTemplate> {
               leading: const Icon(Icons.offline_pin),
               title: Text('Offline Documents', style: GoogleFonts.lato()),
               onTap: () {
-                // Logout logic TODO: OffLogoutline Caching
+                Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const MedicalDocumentsScreen()),
+                );
               },
             ),
             ListTile(
               leading: const Icon(Icons.warning_amber_rounded),
-              title: Text('SOS GEO Localisation', style: GoogleFonts.lato()),
+              title: Text('Emergency GEO Localisation', style: GoogleFonts.lato()),
               onTap: () {
                 Navigator.of(context).push(
                   MaterialPageRoute(builder: (_) => const SOSScreen()),
