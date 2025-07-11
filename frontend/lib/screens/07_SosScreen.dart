@@ -10,6 +10,9 @@ import 'package:latlong2/latlong.dart';
 import 'package:lottie/lottie.dart' hide Marker;
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:vibration/vibration.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+
+
 
 class SOSScreen extends StatefulWidget {
   const SOSScreen({super.key});
@@ -28,19 +31,28 @@ class _SOSScreenState extends State<SOSScreen> with TickerProviderStateMixin {
   late final AnimationController _zoomController;
   late final Animation<double> _zoomAnimation;
 
-  // Verhindert mehrfaches Senden
   bool _sent = false;
+  final _localNotif = FlutterLocalNotificationsPlugin();
 
   @override
   void initState() {
     super.initState();
+    // Zoom langsamer über 5 Sekunden statt 3
     _zoomController = AnimationController(
       vsync: this,
-      duration: const Duration(seconds: 3),
+      duration: const Duration(seconds: 8),
     );
-    _zoomAnimation = Tween<double>(begin: 3.0, end: 17.0).animate(
-      CurvedAnimation(parent: _zoomController, curve: Curves.easeInOutCubic),
+    _zoomAnimation = Tween<double>(
+      begin: 2.0,
+      end: 17.0,
+    ).animate(
+      CurvedAnimation(
+        parent: _zoomController,
+        // eine gleichmäßigere Kurve für langsameren Zoom
+        curve: Curves.easeInOut,
+      ),
     );
+
     _determinePosition();
   }
 
@@ -124,21 +136,23 @@ class _SOSScreenState extends State<SOSScreen> with TickerProviderStateMixin {
     if (_currentPosition == null || _sent) return;
     _sent = true;
 
+    const title = 'SOS gesendet';
+    final body = 'Deine Position wurde an den Arzt übermittelt.';
 
-    if (!mounted) return;
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        behavior: SnackBarBehavior.floating,
-        margin: const EdgeInsets.all(16),
-        content: Text(
-          'Position gesendet!',
-          style: GoogleFonts.lato(fontWeight: FontWeight.bold),
+    await _localNotif.show(
+      0,                // ID
+      title,            // Titel
+      body,             // Text
+      NotificationDetails(
+        iOS: DarwinNotificationDetails(
+          presentAlert: true,   // Banner
+          presentSound: true,
+          presentBadge: true,
         ),
-        duration: const Duration(seconds: 3),
       ),
     );
   }
+
 
   Future<void> _showErrorDialog(String title, String message) {
     return showDialog<void>(
@@ -167,7 +181,16 @@ class _SOSScreenState extends State<SOSScreen> with TickerProviderStateMixin {
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
-        title: Text('SOS', style: GoogleFonts.lato(fontWeight: FontWeight.w700)),
+        // Für den Zurück-Pfeil & alle anderen Icons links
+        iconTheme: const IconThemeData(color: Colors.black),
+        // Für die Icons in actions
+        actionsIconTheme: const IconThemeData(color: Colors.black),
+        titleTextStyle: GoogleFonts.lato(
+          color: Colors.black,
+          fontWeight: FontWeight.w700,
+          fontSize: 20,
+        ),
+        title: const Text('GEO Localisation'),
         centerTitle: true,
         actions: [
           IconButton(
@@ -244,28 +267,29 @@ class _SOSScreenState extends State<SOSScreen> with TickerProviderStateMixin {
 
           // Adresse
           if (!_isLocating && _currentPosition != null)
-            Positioned(
-              top: kToolbarHeight + 12,
-              left: 16,
-              right: 16,
-              child: Material(
-                elevation: 6,
-                borderRadius: BorderRadius.circular(16),
-                color: theme.cardColor.withOpacity(0.9),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
-                  child: Row(
-                    children: [
-                      const Icon(Icons.place, size: 28),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          _currentAddress ?? '$_currentPosition',
-                          style: GoogleFonts.lato(fontSize: 16),
-                          maxLines: 2,
+            SafeArea(
+              bottom: false,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+                child: Material(
+                  elevation: 6,
+                  borderRadius: BorderRadius.circular(16),
+                  color: theme.cardColor.withOpacity(0.9),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.place, size: 28, color: Colors.black),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            _currentAddress ?? '$_currentPosition',
+                            style: GoogleFonts.lato(fontSize: 16, color: Colors.black),
+                            maxLines: 2,
+                          ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 ),
               ),
