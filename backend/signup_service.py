@@ -82,7 +82,6 @@ def register(data: RegisterRequest):
         "firstname": data.firstname.strip(),
         "lastname": data.lastname.strip(),
         "med_id": data.med_id.strip(),
-        "created_at": datetime.utcnow(),
     })
 
     token = create_access_token(str(result.inserted_id))

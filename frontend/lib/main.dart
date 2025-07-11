@@ -2,6 +2,8 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:medapp/screens/02a_registration.dart';
+import 'package:medapp/screens/05_registration_form_screen.dart';
 
 // ── Screens ───────────────────────────────────────────────────────────
 import 'screens/01_welcome.dart';
@@ -12,6 +14,7 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   try {
     await dotenv.load();
+    debugPrint(' .env Datei gefunden – top');
   } catch (_) {
     debugPrint('Keine .env Datei gefunden – nutze Standardwerte');
   }
