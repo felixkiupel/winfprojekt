@@ -151,6 +151,11 @@ async def login_endpoint(form: LoginRequest):
     token = create_access_token({"sub": str(user["_id"])})
     return {"access_token": token, "token_type": "bearer"}
 
+# Alias /login → /token
+@app.post("/login")
+async def login_alias(form: LoginRequest):
+    return await login_endpoint(form)
+
 # 3) Persist FCM tokens
 @app.post("/register-fcm-token")
 async def register_fcm_token(req: FCMTokenRegistration, uid: str = Depends(get_current_user)):
