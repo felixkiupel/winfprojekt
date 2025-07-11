@@ -1,12 +1,14 @@
 """
-signup_service.py – FastAPI-Registrierungs-Service für die Med-App
+auth_service.py – FastAPI-Login-Service für die Med-App
 
-Voraussetzungen:
-    pip install fastapi uvicorn pymongo python-dotenv passlib[bcrypt] pyjwt python-multipart
+Voraussetzungen
+---------------
+pip install fastapi uvicorn pymongo python-dotenv passlib[bcrypt] pyjwt python-multipart
 
-Starten mit:
-    uvicorn signup_service:app --reload
+
+Starten: uvicorn login_service:app --reload
 """
+
 
 import jwt
 from fastapi import FastAPI, HTTPException, status
@@ -21,13 +23,14 @@ load_dotenv()
 
 from backend.db import users_collection
 
-# ---------- Config ----------
+# ---------- Konfiguration ----------
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 SECRET_KEY = os.getenv("JWT_SECRET", "devsecret")
 ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MIN = 60 * 24  # 24h
+ACCESS_TOKEN_EXPIRE_MIN = 60 * 24  # 24 Stunden
 
-app = FastAPI(title="Med-App Signup Service")
+app = FastAPI(title="Med-App Login Service")
+
 
 app.add_middleware(
     CORSMiddleware,
@@ -36,6 +39,51 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# ---------- Pydantic-Schemas ----------
+class LoginRequest(BaseModel):
+    email: str
+    password: str
+
+class TokenResponse(BaseModel):
+    access_token: str
+    token_type: str = "bearer"
+
+# ---------- Helper ----------
+def verify_password(plain_pw: str, hashed_pw: str) -> bool:
+    """Vergleicht Klartext-PW gegen Bcrypt-Hash."""
+    try:
+        return pwd_context.verify(plain_pw, hashed_pw)
+    except Exception:
+        return False
+
+def create_access_token(sub: str) -> str:
+    expire = datetime.utcnow() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MIN)
+    payload = {"sub": sub, "exp": expire}
+    return jwt.encode(payload, SECRET_KEY, algorithm=ALGORITHM)
+
+# ---------- Routes ----------
+@app.post("/login", response_model=TokenResponse)
+def login(data: LoginRequest):
+    user = users_collection.find_one({"email": data.email.lower().strip()})
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Nutzer existiert nicht",
+        )
+    if not verify_password(data.password, user["password"]):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Falsches Passwort",
+        )
+    token = create_access_token(str(user["_id"]))
+    return {"access_token": token, "token_type": "bearer"}
+
+@app.get("/ping")
+def ping():
+    return {"msg": "pong"}
+
+
 
 # ---------- Pydantic-Schemes ----------
 class RegisterRequest(BaseModel):
@@ -87,6 +135,13 @@ def register(data: RegisterRequest):
     token = create_access_token(str(result.inserted_id))
     return {"access_token": token, "token_type": "bearer"}
 
-@app.get("/ping")
-def ping():
-    return {"msg": "pong"}
+
+
+####  curl -X POST http://127.0.0.1:8000/login \
+ ###   -H "Content-Type: application/json" \
+    ###   -d '{"email":"test@test.com","password":""}'
+
+
+## source venv/bin/activate
+## uvicorn login_service:app --reload
+
