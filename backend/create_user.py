@@ -1,5 +1,5 @@
 from passlib.context import CryptContext
-from db import users_collection
+from backend.db import users_collection
 
 pwd_ctx = CryptContext(schemes=["bcrypt"])
 
@@ -17,4 +17,4 @@ def add_user(email: str, password: str,
 
 # Beispielaufruf:
 if __name__ == "__main__":
-    add_user("neuer123@user.de", "supersecret", firstname="Neuer", lastname="User", med_id="3")
+    add_user("test", "123", firstname="Neuer", lastname="User", med_id="3")
