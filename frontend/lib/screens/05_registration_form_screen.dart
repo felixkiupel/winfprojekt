@@ -1,208 +1,216 @@
 import 'dart:convert';
+import 'dart:io' show Platform;
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:http/http.dart' as http;
-import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '06_homescreen.dart';
 
 class RegistrationFormScreen extends StatefulWidget {
+  const RegistrationFormScreen({super.key});
   @override
   _RegistrationFormScreenState createState() => _RegistrationFormScreenState();
 }
 
 class _RegistrationFormScreenState extends State<RegistrationFormScreen> {
   final _formKey = GlobalKey<FormState>();
-  String? name;
-  String? email;
-  String? password;
-  String? insuranceNumber;
+  final _storage = const FlutterSecureStorage();
+
+  String? firstName, lastName, email, password, passwordConfirm, medId;
   bool loading = false;
   String? message;
+
+  String get _baseUrl {
+    const envUrl = String.fromEnvironment('API_URL');
+    if (envUrl.isNotEmpty) return envUrl;
+    if (Platform.isAndroid) return 'http://10.0.2.2:8000';
+    return 'http://127.0.0.1:8000'; // iOS-Simulator & macOS
+  }
 
   Future<void> register() async {
     if (!_formKey.currentState!.validate()) return;
     _formKey.currentState!.save();
 
-    setState(() {
-      loading = true;
-      message = null;
-    });
+    setState(() { loading = true; message = null; });
 
-    final apiUrl = dotenv.env['API_URL'] ?? 'http://localhost:5000';
+    final uri = Uri.parse('$_baseUrl/register');
+
     try {
-      final response = await http.post(
-        Uri.parse('$apiUrl/register'),
+      final res = await http.post(
+        uri,
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
-          'name': name,
+          'firstname': firstName,
+          'lastname': lastName,
           'email': email,
           'password': password,
-          'insuranceNumber': insuranceNumber,
+          'password_confirm': passwordConfirm,
+          'med_id': medId,
         }),
       );
 
-      if (response.statusCode == 201) {
-        // Registrierung erfolgreich – wechsle zum HomeScreenTemplate
+      if (res.statusCode == 200 || res.statusCode == 201) {
+        final data = jsonDecode(res.body);
+        await _storage.write(key: 'access_token', value: data['access_token']);
+        if (!mounted) return;
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(builder: (_) => const HomeScreenTemplate()),
         );
       } else {
-        final body = jsonDecode(response.body);
+        final err = jsonDecode(res.body);
         setState(() {
-          message = body['error'] ?? 'Registration failed';
+          message = err['detail'] ?? 'Registrierung fehlgeschlagen';
         });
       }
     } catch (e) {
-      setState(() {
-        message = 'An error occurred: $e';
-      });
+      setState(() { message = 'Fehler: $e'; });
     } finally {
-      setState(() {
-        loading = false;
-      });
+      if (mounted) setState(() { loading = false; });
     }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Register')),
-      body: Center(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 24),
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 400),
-            child: Form(
-              key: _formKey,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  // Überschrift
+      appBar: AppBar(title: const Text('Registrierung')),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 400),
+          child: Form(
+            key: _formKey,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Text(
+                  'Personal Data Registration',
+                  textAlign: TextAlign.center,
+                  style: GoogleFonts.lato(fontSize: 24, fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 32),
+
+                // First Name
+                TextFormField(
+                  decoration: const InputDecoration(
+                    labelText: 'First Name',
+                    prefixIcon: Icon(Icons.person),
+                    border: OutlineInputBorder(),
+                  ),
+                  validator: (v) =>
+                  (v == null || v.isEmpty) ? 'Bitte Vornamen eingeben' : null,
+                  onSaved: (v) => firstName = v,
+                ),
+                const SizedBox(height: 16),
+
+                // Last Name
+                TextFormField(
+                  decoration: const InputDecoration(
+                    labelText: 'Last Name',
+                    prefixIcon: Icon(Icons.person),
+                    border: OutlineInputBorder(),
+                  ),
+                  validator: (v) =>
+                  (v == null || v.isEmpty) ? 'Bitte Nachnamen eingeben' : null,
+                  onSaved: (v) => lastName = v,
+                ),
+                const SizedBox(height: 16),
+
+                // Email
+                TextFormField(
+                  decoration: const InputDecoration(
+                    labelText: 'Email',
+                    prefixIcon: Icon(Icons.email),
+                    border: OutlineInputBorder(),
+                  ),
+                  keyboardType: TextInputType.emailAddress,
+                  validator: (v) {
+                    if (v == null || v.isEmpty) return 'Bitte Email eingeben';
+                    if (!v.contains('@')) return 'Bitte gültige Email';
+                    return null;
+                  },
+                  onSaved: (v) => email = v,
+                ),
+                const SizedBox(height: 16),
+
+                // Password
+                TextFormField(
+                  decoration: const InputDecoration(
+                    labelText: 'Password',
+                    prefixIcon: Icon(Icons.lock),
+                    border: OutlineInputBorder(),
+                  ),
+                  obscureText: true,
+                  validator: (v) {
+                    if (v == null || v.isEmpty) return 'Bitte Passwort eingeben';
+                    if (v.length < 6) return 'Mindestens 6 Zeichen';
+                    return null;
+                  },
+                  onSaved: (v) => password = v,
+                ),
+                const SizedBox(height: 16),
+
+                // Confirm Password
+                TextFormField(
+                  decoration: const InputDecoration(
+                    labelText: 'Confirm Password',
+                    prefixIcon: Icon(Icons.lock),
+                    border: OutlineInputBorder(),
+                  ),
+                  obscureText: true,
+                  validator: (v) {
+                    if (v == null || v.isEmpty) return 'Bitte bestätigen';
+                    return null;
+                  },
+                  onSaved: (v) => passwordConfirm = v,
+                ),
+                const SizedBox(height: 16),
+
+                // Med ID
+                TextFormField(
+                  decoration: const InputDecoration(
+                    labelText: 'Versicherungsnummer',
+                    prefixIcon: Icon(Icons.badge),
+                    border: OutlineInputBorder(),
+                  ),
+                  validator: (v) => (v == null || v.isEmpty)
+                      ? 'Bitte Versicherungsnummer eingeben'
+                      : null,
+                  onSaved: (v) => medId = v,
+                ),
+                const SizedBox(height: 24),
+
+                if (message != null) ...[
                   Text(
-                    'Personal Data Registration',
+                    message!,
                     textAlign: TextAlign.center,
-                    style: GoogleFonts.lato(
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
+                    style: TextStyle(
+                      color: message!.toLowerCase().contains('erfolg')
+                          ? Colors.green
+                          : Colors.red,
+                      fontSize: 16,
                     ),
-                  ),
-                  const SizedBox(height: 32),
-
-                  // Name-Feld mit Icon
-                  TextFormField(
-                    decoration: const InputDecoration(
-                      labelText: 'Name',
-                      prefixIcon: Icon(Icons.person),
-                      border: OutlineInputBorder(),
-                    ),
-                    validator: (value) {
-                      if (value == null || value.isEmpty) return 'Bitte Name eingeben';
-                      return null;
-                    },
-                    onSaved: (value) => name = value,
                   ),
                   const SizedBox(height: 16),
-
-                  // Email-Feld mit Icon
-                  TextFormField(
-                    decoration: const InputDecoration(
-                      labelText: 'Email',
-                      prefixIcon: Icon(Icons.email),
-                      border: OutlineInputBorder(),
-                    ),
-                    keyboardType: TextInputType.emailAddress,
-                    validator: (value) {
-                      if (value == null || value.isEmpty) return 'Bitte Email eingeben';
-                      if (!value.contains('@')) return 'Bitte gültige Email eingeben';
-                      return null;
-                    },
-                    onSaved: (value) => email = value,
-                  ),
-                  const SizedBox(height: 16),
-
-                  // Passwort-Feld mit Icon
-                  TextFormField(
-                    decoration: const InputDecoration(
-                      labelText: 'Password',
-                      prefixIcon: Icon(Icons.lock),
-                      border: OutlineInputBorder(),
-                    ),
-                    obscureText: true,
-                    validator: (value) {
-                      if (value == null || value.isEmpty) return 'Bitte Passwort eingeben';
-                      if (value.length < 6) return 'Passwort muss mindestens 6 Zeichen haben';
-                      return null;
-                    },
-                    onSaved: (value) => password = value,
-                  ),
-                  const SizedBox(height: 16),
-
-                  // Versicherungsnummer-Feld mit Icon
-                  TextFormField(
-                    decoration: const InputDecoration(
-                      labelText: 'Versicherungsnummer',
-                      prefixIcon: Icon(Icons.badge),
-                      border: OutlineInputBorder(),
-                    ),
-                    keyboardType: TextInputType.number,
-                    validator: (value) {
-                      if (value == null || value.isEmpty) return 'Bitte Versicherungsnummer eingeben';
-                      if (value.length < 5) return 'Versicherungsnummer zu kurz';
-                      return null;
-                    },
-                    onSaved: (value) => insuranceNumber = value,
-                  ),
-                  const SizedBox(height: 24),
-
-                  // Feedback-Nachricht (Erfolg/Fehler)
-                  if (message != null) ...[
-                    Text(
-                      message!,
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        color: message == 'Registration successful!' ? Colors.green : Colors.red,
-                        fontSize: 16,
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                  ],
-
-                  // Submit-Button mit Icon und Mindesthöhe
-                  if (loading) ...[
-                    ElevatedButton(
-                      onPressed: null,
-                      style: ElevatedButton.styleFrom(
-                        minimumSize: const Size.fromHeight(48),
-                        textStyle: GoogleFonts.lato(
-                          fontSize: 18,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                      child: const SizedBox(
-                        height: 24,
-                        width: 24,
-                        child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
-                      ),
-                    ),
-                  ] else ...[
-                    ElevatedButton.icon(
-                      onPressed: register,
-                      icon: const Icon(Icons.check, color: Colors.white),
-                      label: const Text('Submit'),
-                      style: ElevatedButton.styleFrom(
-                        minimumSize: const Size.fromHeight(48),
-                        textStyle: GoogleFonts.lato(
-                          fontSize: 18,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
-                  ],
-
-                  const SizedBox(height: 24),
                 ],
-              ),
+
+                loading
+                    ? const Center(child: CircularProgressIndicator())
+                    : ElevatedButton.icon(
+                  onPressed: register,
+                  icon: const Icon(Icons.check, color: Colors.white),
+                  label: const Text('Submit'),
+                  style: ElevatedButton.styleFrom(
+                    minimumSize: const Size.fromHeight(48),
+                    textStyle: GoogleFonts.lato(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+
+                const SizedBox(height: 24),
+              ],
             ),
           ),
         ),

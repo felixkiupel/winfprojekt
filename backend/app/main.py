@@ -119,6 +119,7 @@ class MessageReadStatus(BaseModel):
 class RegisterRequest(BaseModel):
     email: EmailStr
     password: str
+    password_confirm: str
     firstname: str
     lastname: str
     med_id: str

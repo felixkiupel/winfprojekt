@@ -27,11 +27,8 @@ dependencies:
   provider: ^6.1.5
   shared_preferences: ^2.5.3
 
-  # Galery Connector
   image_picker: ^0.8.6
-  # QR Code Import in Database
   qr_code_scanner: ^0.7.0
-  # QR Code Manipulation
   qr_code_tools: ^0.2.0
   uni_links: ^0.5.1
   flutter_dotenv: ^5.0.2
@@ -39,10 +36,10 @@ dependencies:
   google_fonts: ^4.0.4
 
 
-  geolocator: ^10.0.0        # Standort
-  flutter_map: ^6.1.0        # OSM-Karte
-  latlong2: ^0.9.1           # Koordinaten
-  flutter_animate: ^4.5.0    # Fancy-Animationen
+  geolocator: ^10.0.0
+  flutter_map: ^6.1.0
+  latlong2: ^0.9.1
+  flutter_animate: ^4.5.0
   lottie: ^3.0.0
   geocoding: ^3.0.0
   vibration: ^1.8.4
@@ -61,4 +58,5 @@ flutter:
   uses-material-design: true
   assets:
     - assets/lottie/location.json
+    - .env
 
