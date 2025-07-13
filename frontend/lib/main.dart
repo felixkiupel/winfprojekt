@@ -1,28 +1,45 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:medapp/screens/02a_registration.dart';
+import 'package:medapp/screens/05_registration_form_screen.dart';
 
 // ── Screens ───────────────────────────────────────────────────────────
 import 'screens/01_welcome.dart';
 import 'screens/02b_login.dart';
 import 'screens/06_homescreen.dart';
 
-void main() async {
+final FlutterLocalNotificationsPlugin localNotif = FlutterLocalNotificationsPlugin();
+
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // .env laden
   try {
     await dotenv.load();
+    debugPrint(' .env Datei gefunden – top');
   } catch (_) {
     debugPrint('Keine .env Datei gefunden – nutze Standardwerte');
   }
-  runApp(const MyApp());
+
+  const DarwinInitializationSettings iosSettings = DarwinInitializationSettings(
+    requestAlertPermission: true,
+    requestBadgePermission: true,
+    requestSoundPermission: true,
+  );
+  await localNotif.initialize(
+    const InitializationSettings(iOS: iosSettings),
+  );
+
+  runApp(MyApp(localNotif: localNotif));
 }
 
-class MyApp extends StatefulWidget {
-  const MyApp({super.key});
-  @override
-  _MyAppState createState() => _MyAppState();
-}
+class MyApp extends StatelessWidget {
+  final FlutterLocalNotificationsPlugin localNotif;
+
+  const MyApp({Key? key, required this.localNotif}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
@@ -30,16 +47,14 @@ class MyApp extends StatefulWidget {
       debugShowCheckedModeBanner: false,
       title: 'Medical App',
       theme: _buildTheme(),
-      // ── Zentrale Routentabelle ────────────────────────────────────────
       initialRoute: '/',
       routes: {
         '/': (_) => const SplashScreen(),
         '/welcome': (_) => const WelcomeScreen(),
         '/login': (_) => const LoginScreen(),
         '/home': (_) => const HomeScreenTemplate(),
+        // Optional: '/sos': (_) => SOSScreen(localNotif: localNotif),
       },
-      initialRoute: '/',
-      debugShowCheckedModeBanner: false,
     );
   }
 
@@ -52,7 +67,11 @@ class MyApp extends StatefulWidget {
         elevation: 6,
         shadowColor: Colors.black54,
         centerTitle: true,
-        titleTextStyle: GoogleFonts.lato(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w600),
+        titleTextStyle: GoogleFonts.lato(
+          color: Colors.white,
+          fontSize: 20,
+          fontWeight: FontWeight.w600,
+        ),
         iconTheme: const IconThemeData(color: Colors.white),
       ),
       textTheme: TextTheme(
@@ -81,7 +100,11 @@ class MyApp extends StatefulWidget {
           elevation: 4,
           padding: const EdgeInsets.symmetric(vertical: 16),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-          textStyle: GoogleFonts.lato(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w600),
+          textStyle: GoogleFonts.lato(
+            color: Colors.white,
+            fontSize: 18,
+            fontWeight: FontWeight.w600,
+          ),
         ),
       ),
       outlinedButtonTheme: OutlinedButtonThemeData(
@@ -94,7 +117,10 @@ class MyApp extends StatefulWidget {
         ),
       ),
       textButtonTheme: TextButtonThemeData(
-        style: TextButton.styleFrom(foregroundColor: Colors.black54, textStyle: GoogleFonts.lato(fontSize: 14)),
+        style: TextButton.styleFrom(
+          foregroundColor: Colors.black54,
+          textStyle: GoogleFonts.lato(fontSize: 14),
+        ),
       ),
     );
   }
@@ -102,7 +128,7 @@ class MyApp extends StatefulWidget {
 
 // ── SplashScreen ───────────────────────────────────────────────────────
 class SplashScreen extends StatefulWidget {
-  const SplashScreen({super.key});
+  const SplashScreen({Key? key}) : super(key: key);
   @override
   State<SplashScreen> createState() => _SplashScreenState();
 }
@@ -120,7 +146,14 @@ class _SplashScreenState extends State<SplashScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       body: Center(
-        child: Text('Medical App', style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: Colors.green.shade800)),
+        child: Text(
+          'Medical App',
+          style: TextStyle(
+            fontSize: 32,
+            fontWeight: FontWeight.bold,
+            color: Colors.green.shade800,
+          ),
+        ),
       ),
     );
   }
