@@ -60,8 +60,8 @@ class _SOSScreenState extends State<SOSScreen> with TickerProviderStateMixin {
     bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
     if (!serviceEnabled) {
       await _showErrorDialog(
-        'Ortungsdienste deaktiviert',
-        'Bitte aktiviere die Ortungsdienste, um deine Position zu ermitteln.',
+        'Location Services Disabled',
+        'Please enable location services to determine your current position.',
       );
       setState(() => _isLocating = false);
       return;
@@ -72,8 +72,8 @@ class _SOSScreenState extends State<SOSScreen> with TickerProviderStateMixin {
       permission = await Geolocator.requestPermission();
       if (permission == LocationPermission.denied) {
         await _showErrorDialog(
-          'Keine Berechtigung',
-          'Ohne Standort‑Berechtigung kann die Position nicht ermittelt werden.',
+          'Permission Denied',
+          'Location permission is required to determine your position.',
         );
         setState(() => _isLocating = false);
         return;
@@ -82,8 +82,8 @@ class _SOSScreenState extends State<SOSScreen> with TickerProviderStateMixin {
 
     if (permission == LocationPermission.deniedForever) {
       await _showErrorDialog(
-        'Berechtigung dauerhaft verweigert',
-        'Bitte aktiviere die Standort‑Berechtigung in den Systemeinstellungen.',
+        'Permission Permanently Denied',
+        'Please enable location permissions in your system settings.',
       );
       setState(() => _isLocating = false);
       return;
@@ -136,13 +136,13 @@ class _SOSScreenState extends State<SOSScreen> with TickerProviderStateMixin {
     if (_currentPosition == null || _sent) return;
     _sent = true;
 
-    const title = 'SOS gesendet';
-    final body = 'Deine Position wurde an den Arzt übermittelt.';
+    const title = 'SOS Sent';
+    final body = 'Your current location has been shared';
 
     await _localNotif.show(
       0,                // ID
-      title,            // Titel
-      body,             // Text
+      title,            // Title
+      body,             // Message
       NotificationDetails(
         iOS: DarwinNotificationDetails(
           presentAlert: true,   // Banner
@@ -318,7 +318,7 @@ class _SOSScreenState extends State<SOSScreen> with TickerProviderStateMixin {
                 onPressed: _sent ? null : _sendToDoctor,
                 icon: const Icon(Icons.local_hospital),
                 label: Text(
-                  'Call an Ambulance and send Location',
+                  'CALL AMBULANCE / SEND LOCATION',
                   style: GoogleFonts.lato(fontWeight: FontWeight.bold, fontSize: 18),
                 ),
                 style: ElevatedButton.styleFrom(

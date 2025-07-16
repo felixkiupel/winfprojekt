@@ -108,6 +108,7 @@ class _DoctorUploadScreenState extends State<DoctorUploadScreen> {
 
   Future<void> _uploadDocument() async {
     if (!_formKey.currentState!.validate() || _pickedFile == null) return;
+
     setState(() => _isUploading = true);
 
     try {
@@ -121,20 +122,8 @@ class _DoctorUploadScreenState extends State<DoctorUploadScreen> {
           filename: _pickedFile!.path.split('/').last,
         ));
 
+
       await request.send().timeout(const Duration(seconds: 60));
-
-      setState(() {
-        _uploadedDocs.add({
-          'title': _titleController.text,
-          'filename': _pickedFile!.path.split('/').last,
-        });
-        _insuranceNumber = null;
-        _titleController.clear();
-        _pickedFile = null;
-        _isUploading = false;
-      });
-
-      _formKey.currentState!.reset();
 
       await _localNotif.show(
         0,
@@ -143,7 +132,7 @@ class _DoctorUploadScreenState extends State<DoctorUploadScreen> {
         NotificationDetails(
           android: AndroidNotificationDetails(
             'upload_channel', 'Document Uploads',
-            channelDescription: 'message for successful upload',
+            channelDescription: 'Nur Demo-Success',
             importance: Importance.max,
             priority: Priority.high,
           ),
@@ -151,30 +140,35 @@ class _DoctorUploadScreenState extends State<DoctorUploadScreen> {
         ),
       );
     } catch (_) {
-      setState(() {
-        _insuranceNumber = null;
-        _titleController.clear();
-        _pickedFile = null;
-        _isUploading = false;
-      });
-      _formKey.currentState!.reset();
-
+      //
       await _localNotif.show(
-        1,
-        'Upload erfolgreich',
-        'Dein Dokument wurde erfolgreich gesendet.',
+        0,
+        'Upload successful',
+        'Your document has been uploaded.',
         NotificationDetails(
           android: AndroidNotificationDetails(
             'upload_channel', 'Document Uploads',
-            channelDescription: 'message for successful upload',
+            channelDescription: ' Demo-Success', // Demo Success because no "real" doc - patient - relationships
             importance: Importance.max,
             priority: Priority.high,
           ),
           iOS: DarwinNotificationDetails(),
         ),
       );
+    } finally {
+      // Felder und Formular auf Anfang zurücksetzen
+      _formKey.currentState!.reset();
+      setState(() {
+        _insuranceNumber = null;
+        _titleController.clear();
+        _pickedFile = null;
+        _isUploading = false;
+      });
     }
   }
+
+
+
 
   @override
   Widget build(BuildContext context) {
@@ -202,6 +196,7 @@ class _DoctorUploadScreenState extends State<DoctorUploadScreen> {
                           children: [
                             DropdownButtonFormField<String>(
                               value: _insuranceNumber,
+                              hint: Text('Choose patient', style: GoogleFonts.lato()), // ← neu
                               decoration: InputDecoration(
                                 labelText: 'Choose patient',
                                 border: OutlineInputBorder(
