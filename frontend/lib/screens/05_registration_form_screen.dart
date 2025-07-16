@@ -60,7 +60,7 @@ class _RegistrationFormScreenState extends State<RegistrationFormScreen> {
       } else {
         final err = jsonDecode(res.body);
         setState(() {
-          message = err['detail'] ?? 'Registrierung fehlgeschlagen';
+          message = err['detail'] ?? 'Registration failed';
         });
       }
     } catch (e) {
@@ -73,7 +73,7 @@ class _RegistrationFormScreenState extends State<RegistrationFormScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Registrierung')),
+      appBar: AppBar(title: const Text('Register')),
       body: SingleChildScrollView(
         padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
         child: ConstrainedBox(
@@ -98,7 +98,7 @@ class _RegistrationFormScreenState extends State<RegistrationFormScreen> {
                     border: OutlineInputBorder(),
                   ),
                   validator: (v) =>
-                  (v == null || v.isEmpty) ? 'Bitte Vornamen eingeben' : null,
+                  (v == null || v.isEmpty) ? 'Enter your First Name' : null,
                   onSaved: (v) => firstName = v,
                 ),
                 const SizedBox(height: 16),
@@ -111,7 +111,7 @@ class _RegistrationFormScreenState extends State<RegistrationFormScreen> {
                     border: OutlineInputBorder(),
                   ),
                   validator: (v) =>
-                  (v == null || v.isEmpty) ? 'Bitte Nachnamen eingeben' : null,
+                  (v == null || v.isEmpty) ? 'Enter your Last Name' : null,
                   onSaved: (v) => lastName = v,
                 ),
                 const SizedBox(height: 16),
@@ -125,8 +125,8 @@ class _RegistrationFormScreenState extends State<RegistrationFormScreen> {
                   ),
                   keyboardType: TextInputType.emailAddress,
                   validator: (v) {
-                    if (v == null || v.isEmpty) return 'Bitte Email eingeben';
-                    if (!v.contains('@')) return 'Bitte gültige Email';
+                    if (v == null || v.isEmpty) return 'Enter your E-Mail';
+                    if (!v.contains('@')) return 'Please enter a valid E-Mail';
                     return null;
                   },
                   onSaved: (v) => email = v,
@@ -142,8 +142,8 @@ class _RegistrationFormScreenState extends State<RegistrationFormScreen> {
                   ),
                   obscureText: true,
                   validator: (v) {
-                    if (v == null || v.isEmpty) return 'Bitte Passwort eingeben';
-                    if (v.length < 6) return 'Mindestens 6 Zeichen';
+                    if (v == null || v.isEmpty) return 'Please enter your password';
+                    if (v.length < 6) return 'At least 6 symbols';
                     return null;
                   },
                   onSaved: (v) => password = v,
@@ -159,7 +159,7 @@ class _RegistrationFormScreenState extends State<RegistrationFormScreen> {
                   ),
                   obscureText: true,
                   validator: (v) {
-                    if (v == null || v.isEmpty) return 'Bitte bestätigen';
+                    if (v == null || v.isEmpty) return 'Please confirm';
                     return null;
                   },
                   onSaved: (v) => passwordConfirm = v,
@@ -169,12 +169,12 @@ class _RegistrationFormScreenState extends State<RegistrationFormScreen> {
                 // Med ID
                 TextFormField(
                   decoration: const InputDecoration(
-                    labelText: 'Versicherungsnummer',
+                    labelText: 'Insurance-number',
                     prefixIcon: Icon(Icons.badge),
                     border: OutlineInputBorder(),
                   ),
                   validator: (v) => (v == null || v.isEmpty)
-                      ? 'Bitte Versicherungsnummer eingeben'
+                      ? 'Pleas enter your Insurance-number'
                       : null,
                   onSaved: (v) => medId = v,
                 ),
@@ -185,7 +185,7 @@ class _RegistrationFormScreenState extends State<RegistrationFormScreen> {
                     message!,
                     textAlign: TextAlign.center,
                     style: TextStyle(
-                      color: message!.toLowerCase().contains('erfolg')
+                      color: message!.toLowerCase().contains('success')
                           ? Colors.green
                           : Colors.red,
                       fontSize: 16,

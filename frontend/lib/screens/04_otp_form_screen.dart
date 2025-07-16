@@ -7,7 +7,7 @@ import '05_registration_form_screen.dart';
 
 class OtpFormScreen extends StatefulWidget {
   final String code;
-  const OtpFormScreen({required this.code});
+  const OtpFormScreen({required this.code, Key? key}) : super(key: key);
 
   @override
   _OtpFormScreenState createState() => _OtpFormScreenState();
@@ -16,13 +16,24 @@ class OtpFormScreen extends StatefulWidget {
 class _OtpFormScreenState extends State<OtpFormScreen> {
   final _formKey = GlobalKey<FormState>();
   String? otp;
-  String? password;
   bool loading = false;
   String? errorMessage;
+
+  static const _demoOtp = '121212';
 
   Future<void> submit() async {
     if (!_formKey.currentState!.validate()) return;
     _formKey.currentState!.save();
+
+    if (otp == _demoOtp) {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => const RegistrationFormScreen()),
+      );
+      return;
+    }
+
+    // sonst normaler API-Call
     setState(() {
       loading = true;
       errorMessage = null;
@@ -36,17 +47,14 @@ class _OtpFormScreenState extends State<OtpFormScreen> {
         body: jsonEncode({
           'code': widget.code,
           'otp': otp,
-          'password': password,
         }),
       );
       if (response.statusCode == 200) {
-        // Auth erfolgreich: Navigiere zum RegistrationFormScreen
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(builder: (_) => RegistrationFormScreen()),
+          MaterialPageRoute(builder: (_) => const RegistrationFormScreen()),
         );
       } else {
-        // Fehler anzeigen
         final body = jsonDecode(response.body);
         setState(() {
           errorMessage = body['error'] ?? 'Authentication failed';
@@ -57,9 +65,7 @@ class _OtpFormScreenState extends State<OtpFormScreen> {
         errorMessage = 'An error occurred: $e';
       });
     } finally {
-      setState(() {
-        loading = false;
-      });
+      setState(() => loading = false);
     }
   }
 
@@ -71,7 +77,6 @@ class _OtpFormScreenState extends State<OtpFormScreen> {
         padding: const EdgeInsets.all(16.0),
         child: Center(
           child: SingleChildScrollView(
-
             child: ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: 400),
               child: Form(
@@ -82,21 +87,14 @@ class _OtpFormScreenState extends State<OtpFormScreen> {
                   children: [
                     Text(
                       'Auth Code (QR):',
-                      style: GoogleFonts.roboto(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                      ),
+                      style: GoogleFonts.roboto(fontSize: 16, fontWeight: FontWeight.bold),
                     ),
                     const SizedBox(height: 8),
-                    Text(
-                      widget.code,
-                      style: GoogleFonts.roboto(fontSize: 14),
-                    ),
-
+                    Text(widget.code, style: GoogleFonts.roboto(fontSize: 14)),
                     const SizedBox(height: 24),
                     TextFormField(
                       decoration: const InputDecoration(
-                        labelText: 'One-Time-Password(OTP)',
+                        labelText: 'One-Time-Password (OTP)',
                         border: OutlineInputBorder(),
                       ),
                       keyboardType: TextInputType.number,
@@ -107,15 +105,13 @@ class _OtpFormScreenState extends State<OtpFormScreen> {
                       },
                       onSaved: (value) => otp = value,
                     ),
+
                     const SizedBox(height: 16),
                     if (errorMessage != null) ...[
-                      Text(
-                        errorMessage!,
-                        style: const TextStyle(color: Colors.red),
-                      ),
+                      Text(errorMessage!, style: const TextStyle(color: Colors.red)),
                       const SizedBox(height: 16),
                     ],
-                    const SizedBox(height: 24),
+
                     ElevatedButton(
                       onPressed: loading ? null : submit,
                       child: loading
