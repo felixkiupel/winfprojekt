@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import '../push_service.dart';
 import '07_SosScreen.dart';
 import '08_MedicalDocumentScreen.dart';
 
@@ -11,6 +13,35 @@ class HomeScreenTemplate extends StatefulWidget {
 }
 
 class _HomeScreenTemplateState extends State<HomeScreenTemplate> {
+  int _unreadCount = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _initializePushService();
+    _listenToPushMessages();
+  }
+
+  Future<void> _initializePushService() async {
+    final prefs = await SharedPreferences.getInstance();
+    final userId = prefs.getString('user_id') ?? 'test_user';
+    final pushEnabled = prefs.getBool('push_notifications_enabled') ?? true;
+    
+    if (pushEnabled) {
+      await SimplePushService().initialize(userId: userId);
+    }
+  }
+
+  void _listenToPushMessages() {
+    SimplePushService().messageStream.listen((message) {
+      if (message['type'] == 'unread_count') {
+        setState(() {
+          _unreadCount = message['count'] ?? 0;
+        });
+      }
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -26,6 +57,54 @@ class _HomeScreenTemplateState extends State<HomeScreenTemplate> {
         backgroundColor: Colors.black,
         elevation: 4,
         centerTitle: true,
+        actions: [
+          // Notification icon with badge
+          Stack(
+            children: [
+              IconButton(
+                icon: const Icon(Icons.notifications, color: Colors.white),
+                onPressed: () {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Notifications coming soon')),
+                  );
+                },
+              ),
+              if (_unreadCount > 0)
+                Positioned(
+                  right: 8,
+                  top: 8,
+                  child: Container(
+                    padding: const EdgeInsets.all(2),
+                    decoration: BoxDecoration(
+                      color: Colors.red,
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    constraints: const BoxConstraints(
+                      minWidth: 20,
+                      minHeight: 20,
+                    ),
+                    child: Center(
+                      child: Text(
+                        '$_unreadCount',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+            ],
+          ),
+          // Settings button
+          IconButton(
+            icon: const Icon(Icons.settings, color: Colors.white),
+            onPressed: () {
+              Navigator.pushNamed(context, '/settings');
+            },
+          ),
+        ],
       ),
 
       drawer: Drawer(
@@ -63,7 +142,8 @@ class _HomeScreenTemplateState extends State<HomeScreenTemplate> {
               leading: const Icon(Icons.settings),
               title: Text('Settings', style: GoogleFonts.lato()),
               onTap: () {
-                // Navigator.push(…)
+                Navigator.pop(context);
+                Navigator.pushNamed(context, '/settings');
               },
             ),
             ListTile(
@@ -177,6 +257,35 @@ class _HomeScreenTemplateState extends State<HomeScreenTemplate> {
                 icon: Icons.upload_file,
               ),
               const SizedBox(height: 32),
+
+              // Test Push Button for Admins
+              ElevatedButton.icon(
+                onPressed: () async {
+                  await SimplePushService().sendTestNotification();
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Test notification sent!'),
+                      backgroundColor: Colors.green,
+                    ),
+                  );
+                },
+                icon: const Icon(Icons.notifications_active),
+                label: Text(
+                  'Send Test Notification',
+                  style: GoogleFonts.lato(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.blue,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
 
               // Bottom button to add a new action
               ElevatedButton.icon(

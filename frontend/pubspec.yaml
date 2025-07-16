@@ -17,42 +17,42 @@ dependencies:
   badges: ^3.1.2
   
   # Push Notification Dependencies (OHNE Firebase!)
-  flutter_local_notifications: ^16.3.3
+  flutter_local_notifications: ^19.3.0
   
   # API Calls und WebSocket
   http: ^1.4.0
-  web_socket_channel: ^2.4.5
+  web_socket_channel: ^3.0.3
   
   # State Management & Storage
   provider: ^6.1.5
   shared_preferences: ^2.5.3
 
-  image_picker: ^0.8.6
-  qr_code_scanner: ^0.7.0
+  image_picker: ^1.1.2
+  qr_code_scanner: ^1.0.1
   qr_code_tools: ^0.2.0
   uni_links: ^0.5.1
   flutter_dotenv: ^5.0.2
-  flutter_secure_storage: ^8.0.0
-  google_fonts: ^4.0.4
+  flutter_secure_storage: ^9.2.4
+  google_fonts: ^6.2.1
 
 
-  geolocator: ^10.0.0
-  flutter_map: ^6.1.0
+  geolocator: ^14.0.2
+  flutter_map: ^8.1.1
   latlong2: ^0.9.1
   flutter_animate: ^4.5.0
   lottie: ^3.0.0
-  geocoding: ^3.0.0
-  vibration: ^1.8.4
+  geocoding: ^4.0.0
+  vibration: ^3.1.3
   awesome_snackbar_content: ^0.1.0
   path_provider: ^2.0.0
-  share_plus: ^10.0.0
+  share_plus: ^11.0.0
 
 
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
-  flutter_lints: ^5.0.0
+  flutter_lints: ^6.0.0
 
 flutter:
   uses-material-design: true

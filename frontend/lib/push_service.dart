@@ -1,10 +1,10 @@
-// push_service.dart - Vereinfachter Push Service OHNE Firebase
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 import 'dart:async';
+import 'dart:io' show Platform;
 
 class SimplePushService {
   static final SimplePushService _instance = SimplePushService._internal();
@@ -15,35 +15,55 @@ class SimplePushService {
   
   WebSocketChannel? _channel;
   String? _currentUserId;
+  String? _currentCommunity;
   StreamController<Map<String, dynamic>>? _messageController;
+  bool _isConnected = false;
+  Timer? _pingTimer;
+  Timer? _reconnectTimer;
   
-  // API Configuration - ÄNDERE DIESE FÜR DEIN SETUP
-  static const String API_BASE_URL = 'http://localhost:8000'; // Für Web/Desktop
-  // static const String API_BASE_URL = 'http://10.0.2.2:8000'; // Für Android Emulator
-  // static const String API_BASE_URL = 'http://DEINE_IP:8000'; // Für echtes Gerät
+  // API Configuration
+  static String get API_BASE_URL {
+    if (Platform.isAndroid) {
+      return 'http://10.0.2.2:8000';
+    } else if (Platform.isIOS) {
+      return 'http://localhost:8000';
+    } else {
+      return 'http://localhost:8000';
+    }
+  }
   
   static String get WS_BASE_URL => API_BASE_URL.replaceFirst('http', 'ws');
 
+  // Connection status
+  bool get isConnected => _isConnected;
+  
   // Message Stream
   Stream<Map<String, dynamic>> get messageStream {
     _messageController ??= StreamController<Map<String, dynamic>>.broadcast();
     return _messageController!.stream;
   }
 
-  // Initialize push notifications
-  Future<void> initialize({required String userId}) async {
+  // Initialize push notifications with community support
+  Future<void> initialize({required String userId, String? communityId}) async {
     _currentUserId = userId;
+    
+    // Get community from preferences if not provided
+    if (communityId == null) {
+      final prefs = await SharedPreferences.getInstance();
+      communityId = prefs.getString('selected_community') ?? 'all_communities';
+    }
+    _currentCommunity = communityId;
     
     // Initialize local notifications
     await _initializeLocalNotifications();
     
-    // Warte kurz bevor WebSocket verbindet (Server muss ready sein)
+    // Wait before WebSocket connection
     await Future.delayed(const Duration(seconds: 1));
     
     // Connect to WebSocket
     _connectWebSocket();
     
-    // Register device (für später)
+    // Register device with community
     await _registerDevice();
   }
 
@@ -75,17 +95,23 @@ class SimplePushService {
       try {
         final data = json.decode(response.payload!);
         print('Notification tapped: $data');
-        // TODO: Navigate to specific screen based on data
+        
+        // Broadcast tap event
+        _messageController?.add({
+          'type': 'notification_tapped',
+          'data': data,
+          'timestamp': DateTime.now().toIso8601String()
+        });
       } catch (e) {
         print('Error parsing notification payload: $e');
       }
     }
   }
 
-  // Register device
+  // Register device with community
   Future<void> _registerDevice() async {
     try {
-      final deviceId = DateTime.now().millisecondsSinceEpoch.toString(); // Simple device ID
+      final deviceId = DateTime.now().millisecondsSinceEpoch.toString();
       
       final response = await http.post(
         Uri.parse('$API_BASE_URL/register-device'),
@@ -93,14 +119,49 @@ class SimplePushService {
         body: json.encode({
           'user_id': _currentUserId,
           'device_id': deviceId,
+          'community_id': _currentCommunity,
         }),
       );
       
       if (response.statusCode == 200) {
-        print('✅ Device registered successfully');
+        print('✅ Device registered successfully for community: $_currentCommunity');
       }
     } catch (e) {
       print('Error registering device: $e');
+    }
+  }
+
+  // Update user community
+  Future<void> updateUserCommunity(String userId, String communityId) async {
+    _currentCommunity = communityId;
+    
+    try {
+      // Send update via WebSocket if connected
+      if (_channel != null && _isConnected) {
+        _channel!.sink.add(json.encode({
+          "type": "update_community",
+          "community_id": communityId,
+        }));
+      }
+      
+      // Also update via API
+      final response = await http.put(
+        Uri.parse('$API_BASE_URL/user/community'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer test_token', // Add proper auth in production
+        },
+        body: json.encode({
+          'user_id': userId,
+          'community_id': communityId,
+        }),
+      );
+      
+      if (response.statusCode == 200) {
+        print('✅ Community updated to: $communityId');
+      }
+    } catch (e) {
+      print('Error updating community: $e');
     }
   }
 
@@ -117,6 +178,8 @@ class SimplePushService {
       _channel!.stream.listen(
         (message) {
           print('📨 WebSocket message: $message');
+          _isConnected = true;
+          
           try {
             final data = json.decode(message);
             _handleWebSocketMessage(data);
@@ -126,13 +189,13 @@ class SimplePushService {
         },
         onError: (error) {
           print('❌ WebSocket error: $error');
-          // Reconnect after delay
-          Future.delayed(const Duration(seconds: 5), _connectWebSocket);
+          _isConnected = false;
+          _scheduleReconnect();
         },
         onDone: () {
           print('WebSocket connection closed');
-          // Reconnect after delay
-          Future.delayed(const Duration(seconds: 5), _connectWebSocket);
+          _isConnected = false;
+          _scheduleReconnect();
         },
       );
       
@@ -141,9 +204,18 @@ class SimplePushService {
       
     } catch (e) {
       print('Error connecting to WebSocket: $e');
-      // Retry nach 5 Sekunden
-      Future.delayed(const Duration(seconds: 5), _connectWebSocket);
+      _scheduleReconnect();
     }
+  }
+
+  // Schedule reconnection
+  void _scheduleReconnect() {
+    _reconnectTimer?.cancel();
+    _reconnectTimer = Timer(const Duration(seconds: 5), () {
+      if (!_isConnected) {
+        _connectWebSocket();
+      }
+    });
   }
 
   // Handle WebSocket messages
@@ -158,20 +230,29 @@ class SimplePushService {
         // Show local notification
         final notification = data['notification'];
         if (notification != null) {
-          _showNotification(
-            title: notification['title'] ?? 'MedApp',
-            body: notification['body'] ?? '',
-            payload: notification,
-          );
+          // Check if notification is for user's community
+          final msgCommunity = notification['community_id'] ?? 'all_communities';
+          if (msgCommunity == 'all_communities' || msgCommunity == _currentCommunity || _currentCommunity == 'all_communities') {
+            _showNotification(
+              title: notification['title'] ?? 'MedApp',
+              body: notification['body'] ?? '',
+              payload: notification,
+            );
+          }
         }
         break;
         
       case 'connected':
         print('✅ WebSocket connected: ${data['message']}');
+        _isConnected = true;
         break;
         
       case 'unread_count':
         print('📊 Unread count: ${data['count']}');
+        break;
+        
+      case 'community_updated':
+        print('👥 Community updated: ${data['community_id']}');
         break;
         
       default:
@@ -216,25 +297,24 @@ class SimplePushService {
 
   // Start ping timer
   void _startPingTimer() {
-    Timer.periodic(const Duration(seconds: 30), (timer) {
-      if (_channel != null) {
+    _pingTimer?.cancel();
+    _pingTimer = Timer.periodic(const Duration(seconds: 30), (timer) {
+      if (_channel != null && _isConnected) {
         try {
           _channel!.sink.add(json.encode({"type": "ping"}));
         } catch (e) {
           print('Error sending ping: $e');
           timer.cancel();
         }
-      } else {
-        timer.cancel();
       }
     });
   }
 
-  // Get messages from API
+  // Get messages with community filter
   Future<List<Map<String, dynamic>>> getMessages({int limit = 20}) async {
     try {
       final response = await http.get(
-        Uri.parse('$API_BASE_URL/messages?limit=$limit'),
+        Uri.parse('$API_BASE_URL/messages?limit=$limit&user_id=$_currentUserId'),
       );
       
       if (response.statusCode == 200) {
@@ -266,28 +346,34 @@ class SimplePushService {
 
   // Get unread count
   Future<int> getUnreadCount() async {
-    if (_channel != null && _currentUserId != null) {
+    if (_channel != null && _currentUserId != null && _isConnected) {
       _channel!.sink.add(json.encode({"type": "get_unread_count"}));
     }
-    // Return cached value or fetch from API
     return 0;
   }
 
-  // Send test notification (für Testing)
+  // Send test notification
   Future<void> sendTestNotification() async {
     await _showNotification(
       title: 'Test Notification',
-      body: 'Dies ist eine Test-Benachrichtigung von MedApp',
-      payload: {'type': 'test', 'timestamp': DateTime.now().toIso8601String()},
+      body: 'Dies ist eine Test-Benachrichtigung von MedApp für Community: $_currentCommunity',
+      payload: {
+        'type': 'test',
+        'community_id': _currentCommunity,
+        'timestamp': DateTime.now().toIso8601String()
+      },
     );
   }
 
   // Disconnect
   void disconnect() {
+    _pingTimer?.cancel();
+    _reconnectTimer?.cancel();
     _channel?.sink.close();
     _channel = null;
     _messageController?.close();
     _messageController = null;
+    _isConnected = false;
   }
 
   // Clean up resources

@@ -10,6 +10,7 @@ import 'package:medapp/screens/05_registration_form_screen.dart';
 import 'screens/01_welcome.dart';
 import 'screens/02b_login.dart';
 import 'screens/06_homescreen.dart';
+import 'screens/settings_screen.dart';
 
 final FlutterLocalNotificationsPlugin localNotif = FlutterLocalNotificationsPlugin();
 
@@ -53,6 +54,7 @@ class MyApp extends StatelessWidget {
         '/welcome': (_) => const WelcomeScreen(),
         '/login': (_) => const LoginScreen(),
         '/home': (_) => const HomeScreenTemplate(),
+        '/settings': (_) => const SettingsScreen(),
         // Optional: '/sos': (_) => SOSScreen(localNotif: localNotif),
       },
     );
