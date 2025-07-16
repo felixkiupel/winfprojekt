@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:http/http.dart' as http;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-import '06_homescreen.dart';
+import 'package:medapp/screens/01_welcome.dart';
 
 class RegistrationFormScreen extends StatefulWidget {
   const RegistrationFormScreen({super.key});
@@ -31,7 +31,10 @@ class _RegistrationFormScreenState extends State<RegistrationFormScreen> {
     if (!_formKey.currentState!.validate()) return;
     _formKey.currentState!.save();
 
-    setState(() { loading = true; message = null; });
+    setState(() {
+      loading = true;
+      message = null;
+    });
 
     final uri = Uri.parse('$_baseUrl/register');
 
@@ -52,21 +55,53 @@ class _RegistrationFormScreenState extends State<RegistrationFormScreen> {
       if (res.statusCode == 200 || res.statusCode == 201) {
         final data = jsonDecode(res.body);
         await _storage.write(key: 'access_token', value: data['access_token']);
+
         if (!mounted) return;
+
+        // === SnackBar anzeigen ===
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('Registration successful!'),
+            backgroundColor: Colors.green.shade600,
+            duration: const Duration(seconds: 2),
+          ),
+        );
+
+        // kurze Wartezeit, damit der SnackBar sichtbar bleibt
+        await Future.delayed(const Duration(seconds: 2));
+
+        // dann weiter zum Welcome-Screen
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(builder: (_) => const HomeScreenTemplate()),
+          MaterialPageRoute(builder: (_) => const WelcomeScreen()),
         );
       } else {
         final err = jsonDecode(res.body);
+        final detail = err['detail'];
+        String errorMsg;
+
+        if (detail is List) {
+          errorMsg = detail
+              .map((e) => e['msg']?.toString() ?? e.toString())
+              .join('\n');
+        } else {
+          errorMsg = detail?.toString() ?? 'Registration failed';
+        }
+
         setState(() {
-          message = err['detail'] ?? 'Registration failed';
+          message = errorMsg;
         });
       }
     } catch (e) {
-      setState(() { message = 'Fehler: $e'; });
+      setState(() {
+        message = 'Fehler: $e';
+      });
     } finally {
-      if (mounted) setState(() { loading = false; });
+      if (mounted) {
+        setState(() {
+          loading = false;
+        });
+      }
     }
   }
 
@@ -174,7 +209,7 @@ class _RegistrationFormScreenState extends State<RegistrationFormScreen> {
                     border: OutlineInputBorder(),
                   ),
                   validator: (v) => (v == null || v.isEmpty)
-                      ? 'Pleas enter your Insurance-number'
+                      ? 'Please enter your Insurance-number'
                       : null,
                   onSaved: (v) => medId = v,
                 ),

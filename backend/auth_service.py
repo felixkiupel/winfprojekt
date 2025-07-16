@@ -1,4 +1,4 @@
-# Loads environment variables from a .env file (e.g., for secrets like JWT keys)
+# Loads environment variables from a .env file (e.g., for secrets like JWT keys) and pydantic Field
 from dotenv import load_dotenv
 
 # FastAPI imports for building the web API
@@ -55,7 +55,7 @@ class RegisterRequest(BaseModel):
     firstname: str
     lastname: str
     med_id: str
-    role: str  # e.g., "patient"
+
 
 # Response schema after login or registration: contains the JWT
 class TokenResponse(BaseModel):
