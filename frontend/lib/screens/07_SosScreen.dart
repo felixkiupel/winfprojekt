@@ -318,7 +318,7 @@ class _SOSScreenState extends State<SOSScreen> with TickerProviderStateMixin {
                 onPressed: _sent ? null : _sendToDoctor,
                 icon: const Icon(Icons.local_hospital),
                 label: Text(
-                  'Sofort an Arzt senden',
+                  'Call an Ambulance and send Location',
                   style: GoogleFonts.lato(fontWeight: FontWeight.bold, fontSize: 18),
                 ),
                 style: ElevatedButton.styleFrom(
@@ -327,7 +327,7 @@ class _SOSScreenState extends State<SOSScreen> with TickerProviderStateMixin {
                   elevation: 8,
                 ),
               ).animate().slideY(begin: 1, end: 0, curve: Curves.easeOutBack, duration: 600.ms),
-            ),
+            )
         ],
       ),
     );
