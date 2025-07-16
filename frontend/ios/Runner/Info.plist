@@ -54,5 +54,7 @@
     <!-- Allow Opening Documents In Place (für iCloud/Dateien-App) -->
     <key>LSSupportsOpeningDocumentsInPlace</key>
     <true/>
+    <key>io.flutter.embedded_views_preview</key>
+    <true/>
 </dict>
 </plist>
