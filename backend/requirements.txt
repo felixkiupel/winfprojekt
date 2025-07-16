@@ -1,15 +1,42 @@
-# Minimale Requirements für Push Server (ohne Docker)
+# -------------------- Core Requirements (for Push Server, no Docker) --------------------
+
 fastapi==0.104.1
+# FastAPI is the main web framework used to build the backend API
+
 uvicorn[standard]==0.24.0
+# Uvicorn is the ASGI server that runs FastAPI apps
+# '[standard]' includes useful extras like websockets, uvloop, etc.
+
 firebase-admin==6.3.0
+# Firebase Admin SDK for sending push notifications (e.g. via FCM)
+# Also used for managing users, tokens, etc.
+
 python-jose[cryptography]==3.3.0
+# Library for working with JWT (JSON Web Tokens) — used for authentication
+# '[cryptography]' adds support for more secure encryption algorithms
+
 python-multipart==0.0.6
+# Enables handling of form-data (e.g. for file uploads, login forms)
+
 python-dotenv==1.0.0
+# Loads environment variables from a .env file
+# Useful for managing secrets, database URIs, API keys, etc.
 
-# Optional für Admin UI
-streamlit==1.28.2  # Nur wenn du die Python Admin UI willst
 
-# Für Produktion später hinzufügen:
+# -------------------- Optional: Admin UI (for internal use) --------------------
+
+streamlit==1.28.2
+# Streamlit is a lightweight UI framework for building data dashboards
+# Only needed if you want to build a Python-based admin interface
+
+# -------------------- Optional: For Production Setup (Commented for now) --------------------
+
 # sqlalchemy==2.0.23
+# SQLAlchemy ORM — used if you switch to a relational database (e.g. PostgreSQL)
+
 # redis==5.0.1
+# Redis — used for caching, background tasks, or rate limiting
+
 # psycopg2-binary==2.9.9
+# PostgreSQL database driver for Python
+# Required if you deploy with PostgreSQL instead of MongoDB
