@@ -1,9 +1,3 @@
-
-/// ----------------------------------------------------
-/// Basis-URL: via
-///   flutter run --dart-define API_URL=https://dein.backend.de
-/// Default (Emulator) → http://10.0.2.2:8000
-
 import 'dart:convert';
 import 'dart:io' show Platform;
 import 'package:flutter/material.dart';
@@ -20,16 +14,15 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen> {
-  final TextEditingController emailController = TextEditingController();
+  final TextEditingController emailController    = TextEditingController();
   final TextEditingController passwordController = TextEditingController();
-  final FlutterSecureStorage _storage = const FlutterSecureStorage();
+  final FlutterSecureStorage _storage            = const FlutterSecureStorage();
 
-  bool _obscureText = true;
-  bool _loading = false;
+  bool _obscureText  = true;
+  bool _loading      = false;
   String? _errorMessage;
 
-  // Basis‑URL: zuerst --dart-define, ansonsten automatisch ermitteln
-  final String _baseUrl = (() {
+  late final String _baseUrl = (() {
     const envUrl = String.fromEnvironment('API_URL');
     if (envUrl.isNotEmpty) return envUrl;
     final host = Platform.isAndroid ? '10.0.2.2' : '127.0.0.1';
@@ -37,16 +30,16 @@ class _LoginScreenState extends State<LoginScreen> {
   })();
 
   Future<void> _attemptLogin() async {
-    final email = emailController.text.trim();
+    final email    = emailController.text.trim();
     final password = passwordController.text;
 
     if (email.isEmpty || password.isEmpty) {
-      setState(() => _errorMessage = 'Bitte E-Mail und Passwort ausfüllen');
+      setState(() => _errorMessage = 'Please enter your E-Mail and Password');
       return;
     }
 
     setState(() {
-      _loading = true;
+      _loading      = true;
       _errorMessage = null;
     });
 
@@ -59,21 +52,23 @@ class _LoginScreenState extends State<LoginScreen> {
       );
 
       if (res.statusCode == 200) {
-        final data = jsonDecode(res.body) as Map<String, dynamic>;
+        final data  = jsonDecode(res.body) as Map<String, dynamic>;
         final token = data['access_token'] as String?;
-        if (token == null) throw Exception('Token fehlt');
+        if (token == null) throw Exception('Token fehlt in der Antwort');
 
-        // JWT sicher speichern
+        // 1) JWT sicher speichern
         await _storage.write(key: 'jwt', value: token);
 
+        // 2) Navigiere zur Home‑Seite
         if (!mounted) return;
-        Navigator.pushReplacementNamed(context, '/home');
+        Navigator.of(context).pushReplacementNamed('/home');
       } else {
-        final msg = jsonDecode(res.body)['detail'] ?? 'Ungültige Anmeldedaten';
-        setState(() => _errorMessage = msg.toString());
+        // Fehlernachricht aus Backend-Response übernehmen
+        final detail = (jsonDecode(res.body) as Map<String, dynamic>)['detail'];
+        setState(() => _errorMessage = detail?.toString() ?? 'Please enter a valid E-Mail and Password');
       }
     } catch (e) {
-      setState(() => _errorMessage = 'Login fehlgeschlagen: $e');
+      setState(() => _errorMessage = 'Login failed: $e');
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -90,17 +85,9 @@ class _LoginScreenState extends State<LoginScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(
-          'Sign In',
-          style: GoogleFonts.lato(
-            color: Colors.white,
-            fontSize: 20,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
+        title: Text('Sign In', style: GoogleFonts.lato(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w600)),
         backgroundColor: Colors.black,
         elevation: 6,
-        shadowColor: Colors.black54,
         centerTitle: true,
       ),
       backgroundColor: const Color(0xFFF3FFF5),
@@ -109,22 +96,20 @@ class _LoginScreenState extends State<LoginScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
+            // Logo
             SizedBox(
               height: 160,
               child: Center(
                 child: Hero(
                   tag: 'logo',
-                  child: Icon(
-                    Icons.local_hospital,
-                    size: 80,
-                    color: Colors.black87,
-                  ),
+                  child: Icon(Icons.local_hospital, size: 80, color: Colors.black87),
                 ),
               ),
             ),
+
             const SizedBox(height: 24),
 
-            // E-Mail-Eingabe
+            // E-Mail
             TextField(
               controller: emailController,
               keyboardType: TextInputType.emailAddress,
@@ -135,9 +120,10 @@ class _LoginScreenState extends State<LoginScreen> {
                 border: const OutlineInputBorder(),
               ),
             ),
+
             const SizedBox(height: 20),
 
-            // Passwort-Eingabe
+            // Passwort
             TextField(
               controller: passwordController,
               obscureText: _obscureText,
@@ -152,73 +138,45 @@ class _LoginScreenState extends State<LoginScreen> {
                 border: const OutlineInputBorder(),
               ),
             ),
+
             const SizedBox(height: 12),
 
-            // Forgot Password
+            // "Passwort vergessen"
             Align(
               alignment: Alignment.centerRight,
               child: TextButton(
                 onPressed: () {
-                  // TODO: „Passwort vergessen“-Logik
+                  // TODO: Passwort-Reset
                 },
-                child: Text(
-                  'Forgot your password?',
-                  style: GoogleFonts.lato(color: Colors.grey),
-                ),
+                child: Text('Forgot your password?', style: GoogleFonts.lato(color: Colors.grey)),
               ),
             ),
+
             const SizedBox(height: 16),
 
             // Fehlermeldung
             if (_errorMessage != null) ...[
-              Text(
-                _errorMessage!,
-                textAlign: TextAlign.center,
-                style: TextStyle(color: Colors.red.shade700, fontSize: 14),
-              ),
+              Text(_errorMessage!, textAlign: TextAlign.center, style: TextStyle(color: Colors.red.shade700, fontSize: 14)),
               const SizedBox(height: 16),
             ],
 
             // Login-Button
-            _loading
-                ? ElevatedButton(
-              onPressed: null,
+            ElevatedButton(
+              onPressed: _loading ? null : _attemptLogin,
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.black,
                 elevation: 4,
                 padding: const EdgeInsets.symmetric(vertical: 16),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10),
-                ),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
               ),
-              child: const SizedBox(
-                height: 24,
-                width: 24,
-                child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
-              ),
-            )
-                : ElevatedButton(
-              onPressed: _attemptLogin,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.black,
-                elevation: 4,
-                padding: const EdgeInsets.symmetric(vertical: 16),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10),
-                ),
-              ),
-              child: Text(
-                'Login',
-                style: GoogleFonts.lato(
-                  color: Colors.white,
-                  fontSize: 18,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
+              child: _loading
+                  ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                  : Text('Login', style: GoogleFonts.lato(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w600)),
             ),
+
             const SizedBox(height: 16),
 
-            // Create Account
+            // Registrierung
             OutlinedButton(
               onPressed: () => Navigator.push(
                 context,
@@ -227,23 +185,14 @@ class _LoginScreenState extends State<LoginScreen> {
               style: OutlinedButton.styleFrom(
                 side: const BorderSide(color: Colors.black54),
                 padding: const EdgeInsets.symmetric(vertical: 16),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10),
-                ),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
               ),
-              child: Text(
-                'Create Account',
-                style: GoogleFonts.lato(color: Colors.black87, fontSize: 16),
-              ),
+              child: Text('Create Account', style: GoogleFonts.lato(color: Colors.black87, fontSize: 16)),
             ),
+
             const SizedBox(height: 24),
 
-            Center(
-              child: Text(
-                'Need help? Contact support',
-                style: GoogleFonts.lato(fontSize: 14, color: Colors.black54),
-              ),
-            ),
+            Center(child: Text('Need help? Contact support', style: GoogleFonts.lato(fontSize: 14, color: Colors.black54))),
           ],
         ),
       ),
