@@ -9,11 +9,12 @@ from fastapi.security import OAuth2PasswordBearer
 # Pydantic is used to validate and parse incoming JSON data
 from pydantic import BaseModel, EmailStr
 
-# Database connection (MongoDB collection)
-from backend.db import users_collection
+# Database connection (MongoDB collections)
+from backend.db import users_collection, community_collection
 
-# Import the patient-related routes (GET endpoints)
+# Import the patient- and community-related routes
 from backend import patient
+from backend import community
 
 # Authentication helper functions and password handling logic
 from backend.auth_utils import (
@@ -26,7 +27,7 @@ from backend.auth_utils import (
 load_dotenv()
 
 # Initialize the FastAPI application
-app = FastAPI(title="Med-App Login Service")
+app = FastAPI(title="Med-App Login & Community Service")
 
 # Allow requests from all origins (useful for frontend–backend communication)
 app.add_middleware(
@@ -56,7 +57,6 @@ class RegisterRequest(BaseModel):
     lastname: str
     med_id: str
 
-
 # Response schema after login or registration: contains the JWT
 class TokenResponse(BaseModel):
     access_token: str
@@ -68,10 +68,8 @@ class PatientProfile(BaseModel):
     lastname: str
     med_id: str
 
-
 # ---------- Auth Routes ----------
 
-# Login endpoint: verifies user credentials and returns a JWT token
 @app.post("/login", response_model=TokenResponse)
 def login(data: LoginRequest):
     # Try to find a user by email (case-insensitive, trimmed)
@@ -91,8 +89,6 @@ def login(data: LoginRequest):
     # Return the token in the response
     return {"access_token": token, "token_type": "bearer"}
 
-
-# Registration endpoint: creates a new user if validation passes
 @app.post("/register", response_model=TokenResponse)
 def register(data: RegisterRequest):
     email = data.email.lower().strip()
@@ -122,12 +118,15 @@ def register(data: RegisterRequest):
     token = create_access_token(str(result.inserted_id))
     return {"access_token": token, "token_type": "bearer"}
 
-
 # Health check endpoint: use this to see if the backend is alive
 @app.get("/ping")
 def ping():
     return {"msg": "pong"}
 
+# ---------- Include Routers ----------
 
-# Include the GET routes from the patient module (e.g., /patient/me, /patient/all)
+# Patient routes (z.B. /patient/me, /patient/all)
 app.include_router(patient.router)
+
+# Community routes (neue Endpoints unter /community)
+app.include_router(community.router)
