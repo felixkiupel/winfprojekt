@@ -123,6 +123,39 @@ def register(data: RegisterRequest):
 def ping():
     return {"msg": "pong"}
 
+@app.on_event("startup")
+def seed_test_users():
+    test_users = [
+        {
+            "email": "test1@example.com",
+            "password": "password123",
+            "firstname": "Max",
+            "lastname": "Mustermann",
+            "med_id": "MED001"
+        },
+        {
+            "email": "test2@example.com",
+            "password": "secret456",
+            "firstname": "Erika",
+            "lastname": "Musterfrau",
+            "med_id": "MED002"
+        }
+    ]
+    for u in test_users:
+        # Prüfe, ob schon angelegt
+        if not users_collection.find_one({"email": u["email"]}):
+            users_collection.insert_one({
+                "email": u["email"],
+                "password": pwd_context.hash(u["password"]),
+                "firstname": u["firstname"],
+                "lastname": u["lastname"],
+                "med_id": u["med_id"],
+                "role": "patient"
+            })
+            print(f"🛠️  Test-User {u['email']} angelegt")
+        else:
+            print(f"ℹ️  Test-User {u['email']} existiert bereits")
+
 # ---------- Include Routers ----------
 
 # Patient routes (z.B. /patient/me, /patient/all)
