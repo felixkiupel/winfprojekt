@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:medapp/screens/10_CommunityMenu.dart';
+import 'package:medapp/screens/11_Messages.dart';
 import '02b_login.dart';
 import '09_DoctorUploadScreen.dart';
 import '07_SosScreen.dart';
@@ -110,6 +112,24 @@ class _HomeScreenTemplateState extends State<HomeScreenTemplate> {
               onTap: () {
                 Navigator.of(context).push(
                   MaterialPageRoute(builder: (_) => const PatientDocumentsScreen()),
+                );
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.group),
+              title: Text('Communitys', style: GoogleFonts.lato()),
+              onTap: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const CommunitySelectionScreen()),
+                );
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.message_outlined),
+              title: Text('Push-Benachrichtigung', style: GoogleFonts.lato()),
+              onTap: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const CommunityPostScreen()),
                 );
               },
             ),

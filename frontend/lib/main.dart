@@ -11,20 +11,57 @@ import 'screens/01_welcome.dart';
 import 'screens/02b_login.dart';
 import 'screens/06_homescreen.dart';
 
+// ── Farbdefinitions-Block ────────────────────────────────────────────
+const Color kMedicalPrimary              = Color(0xFFF5FFF6);
+const Color kMedicalPrimaryContainer     = Color(0xFFE8F5E9);
+const Color kMedicalSecondary            = Color(0xFF81C784);
+const Color kMedicalSecondaryContainer   = Color(0xFFA5D6A7);
+const Color kMedicalBackground           = kMedicalPrimary;
+const Color kMedicalSurface              = Colors.white;
+const Color kMedicalSurfaceVariant       = Color(0xFFE0F2F1);
+const Color kMedicalError                = Color(0xFFD32F2F);
+
+const Color kMedicalOnPrimary            = Colors.white;
+const Color kMedicalOnPrimaryContainer   = Color(0xFF212121);
+const Color kMedicalOnSecondary          = Color(0xFF212121);
+const Color kMedicalOnSecondaryContainer = Color(0xFF212121);
+const Color kMedicalOnBackground         = Color(0xFF212121);
+const Color kMedicalOnSurface            = Color(0xFF212121);
+const Color kMedicalOnSurfaceVariant     = Color(0xFF212121);
+const Color kMedicalOnError              = Colors.white;
+
+const ColorScheme medicalColorScheme = ColorScheme(
+  brightness: Brightness.light,
+  primary: kMedicalPrimary,
+  onPrimary: kMedicalOnPrimary,
+  primaryContainer: kMedicalPrimaryContainer,
+  onPrimaryContainer: kMedicalOnPrimaryContainer,
+  secondary: kMedicalSecondary,
+  onSecondary: kMedicalOnSecondary,
+  secondaryContainer: kMedicalSecondaryContainer,
+  onSecondaryContainer: kMedicalOnSecondaryContainer,
+  background: kMedicalBackground,
+  onBackground: kMedicalOnBackground,
+  surface: kMedicalSurface,
+  onSurface: kMedicalOnSurface,
+  surfaceVariant: kMedicalSurfaceVariant,
+  onSurfaceVariant: kMedicalOnSurfaceVariant,
+  error: kMedicalError,
+  onError: kMedicalOnError,
+);
+
 final FlutterLocalNotificationsPlugin localNotif = FlutterLocalNotificationsPlugin();
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-
-  // .env laden
   try {
     await dotenv.load();
-    debugPrint(' .env Datei gefunden – top');
+    debugPrint('.env Datei gefunden – top');
   } catch (_) {
     debugPrint('Keine .env Datei gefunden – nutze Standardwerte');
   }
 
-  const DarwinInitializationSettings iosSettings = DarwinInitializationSettings(
+  const iosSettings = DarwinInitializationSettings(
     requestAlertPermission: true,
     requestBadgePermission: true,
     requestSoundPermission: true,
@@ -38,7 +75,6 @@ Future<void> main() async {
 
 class MyApp extends StatelessWidget {
   final FlutterLocalNotificationsPlugin localNotif;
-
   const MyApp({Key? key, required this.localNotif}) : super(key: key);
 
   @override
@@ -53,45 +89,53 @@ class MyApp extends StatelessWidget {
         '/welcome': (_) => const WelcomeScreen(),
         '/login': (_) => const LoginScreen(),
         '/home': (_) => const HomeScreenTemplate(),
-        // Optional: '/sos': (_) => SOSScreen(localNotif: localNotif),
       },
     );
   }
 
   ThemeData _buildTheme() {
     return ThemeData(
-      colorScheme: ColorScheme.fromSeed(seedColor: Colors.black, brightness: Brightness.light),
-      scaffoldBackgroundColor: const Color(0xFFF3FFF5),
+      useMaterial3: true,
+      colorScheme: medicalColorScheme,
+      scaffoldBackgroundColor: medicalColorScheme.primary,
       appBarTheme: AppBarTheme(
         backgroundColor: Colors.black,
         elevation: 6,
-        shadowColor: Colors.black54,
+        shadowColor: medicalColorScheme.onSurface.withOpacity(0.18),
         centerTitle: true,
         titleTextStyle: GoogleFonts.lato(
-          color: Colors.white,
+          color: medicalColorScheme.onPrimary,
           fontSize: 20,
           fontWeight: FontWeight.w600,
         ),
         iconTheme: const IconThemeData(color: Colors.white),
       ),
       textTheme: TextTheme(
-        bodyLarge: GoogleFonts.lato(color: Colors.black87),
-        bodyMedium: GoogleFonts.lato(color: Colors.black87),
-        titleMedium: GoogleFonts.lato(color: Colors.black87),
-        titleSmall: GoogleFonts.lato(color: Colors.black54),
+        bodyLarge: GoogleFonts.lato(color: medicalColorScheme.onSurface),
+        bodyMedium: GoogleFonts.lato(color: medicalColorScheme.onSurface),
+        titleMedium: GoogleFonts.lato(color: medicalColorScheme.onSurface),
+        titleSmall: GoogleFonts.lato(color: medicalColorScheme.onSurfaceVariant),
       ),
       inputDecorationTheme: InputDecorationTheme(
-        labelStyle: GoogleFonts.lato(color: Colors.black87),
-        prefixStyle: GoogleFonts.lato(color: Colors.black87),
-        hintStyle: GoogleFonts.lato(color: Colors.black38),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(4),
-          borderSide: BorderSide(color: Colors.grey.shade400),
+          borderSide: BorderSide(color: Colors.black, width: 1),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(4),
+          borderSide: BorderSide(color: Colors.black, width: 1),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(4),
-          borderSide: const BorderSide(color: Colors.black, width: 2),
+          borderSide: BorderSide(color: Colors.black, width:2),
         ),
+        disabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(4),
+          borderSide: BorderSide(color: medicalColorScheme.surfaceVariant, width: 2),
+        ),
+        hintStyle: GoogleFonts.lato(color: medicalColorScheme.onSurfaceVariant),
+        labelStyle: GoogleFonts.lato(color: medicalColorScheme.onSurface),
+        prefixStyle: GoogleFonts.lato(color: medicalColorScheme.onSurface),
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
@@ -101,7 +145,6 @@ class MyApp extends StatelessWidget {
           padding: const EdgeInsets.symmetric(vertical: 16),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
           textStyle: GoogleFonts.lato(
-            color: Colors.white,
             fontSize: 18,
             fontWeight: FontWeight.w600,
           ),
@@ -109,16 +152,16 @@ class MyApp extends StatelessWidget {
       ),
       outlinedButtonTheme: OutlinedButtonThemeData(
         style: OutlinedButton.styleFrom(
-          side: const BorderSide(color: Colors.black54),
-          foregroundColor: Colors.black87,
+          side: BorderSide(color: medicalColorScheme.onSurfaceVariant),
+          foregroundColor: medicalColorScheme.onSurface,
           padding: const EdgeInsets.symmetric(vertical: 16),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-          textStyle: GoogleFonts.lato(color: Colors.black87, fontSize: 16),
+          textStyle: GoogleFonts.lato(fontSize: 16),
         ),
       ),
       textButtonTheme: TextButtonThemeData(
         style: TextButton.styleFrom(
-          foregroundColor: Colors.black54,
+          foregroundColor: medicalColorScheme.onSurfaceVariant,
           textStyle: GoogleFonts.lato(fontSize: 14),
         ),
       ),
@@ -151,7 +194,7 @@ class _SplashScreenState extends State<SplashScreen> {
           style: TextStyle(
             fontSize: 32,
             fontWeight: FontWeight.bold,
-            color: Colors.green.shade800,
+            color: medicalColorScheme.secondary,
           ),
         ),
       ),

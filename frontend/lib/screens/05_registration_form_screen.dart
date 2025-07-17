@@ -233,7 +233,7 @@ class _RegistrationFormScreenState extends State<RegistrationFormScreen> {
                     ? const Center(child: CircularProgressIndicator())
                     : ElevatedButton.icon(
                   onPressed: register,
-                  icon: const Icon(Icons.check, color: Colors.white),
+                  icon: const Icon(Icons.check, color: Colors.black),
                   label: const Text('Submit'),
                   style: ElevatedButton.styleFrom(
                     minimumSize: const Size.fromHeight(48),
