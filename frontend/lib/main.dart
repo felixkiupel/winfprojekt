@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:medapp/screens/02a_registration.dart';
 import 'package:medapp/screens/05_registration_form_screen.dart';
 
@@ -16,6 +18,9 @@ final FlutterLocalNotificationsPlugin localNotif = FlutterLocalNotificationsPlug
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Initialize Firebase FIRST
+  await Firebase.initializeApp();
 
   // .env laden
   try {

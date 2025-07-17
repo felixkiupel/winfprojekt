@@ -5,6 +5,42 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 import 'dart:async';
 import 'dart:io' show Platform;
+import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:firebase_core/firebase_core.dart';
+
+@pragma('vm:entry-point')
+Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
+  await Firebase.initializeApp();
+  print("Handling background message: ${message.messageId}");
+  
+  final FlutterLocalNotificationsPlugin localNotifications = FlutterLocalNotificationsPlugin();
+  
+  const AndroidNotificationDetails androidDetails = AndroidNotificationDetails(
+    'medapp_channel',
+    'MedApp Notifications',
+    channelDescription: 'Health updates and important messages',
+    importance: Importance.high,
+    priority: Priority.high,
+  );
+  
+  const DarwinNotificationDetails iosDetails = DarwinNotificationDetails(
+    presentAlert: true,
+    presentBadge: true,
+    presentSound: true,
+  );
+  
+  const NotificationDetails details = NotificationDetails(
+    android: androidDetails,
+    iOS: iosDetails,
+  );
+  
+  await localNotifications.show(
+    DateTime.now().millisecond,
+    message.notification?.title ?? 'MedApp',
+    message.notification?.body ?? '',
+    details,
+  );
+}
 
 class SimplePushService {
   static final SimplePushService _instance = SimplePushService._internal();
@@ -12,10 +48,12 @@ class SimplePushService {
   SimplePushService._internal();
 
   final FlutterLocalNotificationsPlugin _localNotifications = FlutterLocalNotificationsPlugin();
+  FirebaseMessaging? _firebaseMessaging;
   
   WebSocketChannel? _channel;
   String? _currentUserId;
   String? _currentCommunity;
+  String? _fcmToken;
   StreamController<Map<String, dynamic>>? _messageController;
   bool _isConnected = false;
   Timer? _pingTimer;
@@ -43,7 +81,7 @@ class SimplePushService {
     return _messageController!.stream;
   }
 
-  // Initialize push notifications with community support
+  // Initialize push notifications with FCM
   Future<void> initialize({required String userId, String? communityId}) async {
     _currentUserId = userId;
     
@@ -54,6 +92,9 @@ class SimplePushService {
     }
     _currentCommunity = communityId;
     
+    // Initialize Firebase
+    await _initializeFirebase();
+    
     // Initialize local notifications
     await _initializeLocalNotifications();
     
@@ -63,8 +104,115 @@ class SimplePushService {
     // Connect to WebSocket
     _connectWebSocket();
     
-    // Register device with community
+    // Register device with FCM token
     await _registerDevice();
+  }
+
+  // Initialize Firebase Messaging
+  Future<void> _initializeFirebase() async {
+    try {
+      // Initialize Firebase if not already initialized
+      if (Firebase.apps.isEmpty) {
+        await Firebase.initializeApp();
+      }
+      
+      _firebaseMessaging = FirebaseMessaging.instance;
+      
+      // Request permissions for iOS
+      NotificationSettings settings = await _firebaseMessaging!.requestPermission(
+        alert: true,
+        announcement: false,
+        badge: true,
+        carPlay: false,
+        criticalAlert: false,
+        provisional: false,
+        sound: true,
+      );
+      
+      print('User granted permission: ${settings.authorizationStatus}');
+      
+      // Get FCM token
+      _fcmToken = await _firebaseMessaging!.getToken();
+      print('FCM Token: $_fcmToken');
+      
+      // Handle token refresh
+      _firebaseMessaging!.onTokenRefresh.listen((newToken) {
+        _fcmToken = newToken;
+        print('FCM Token refreshed: $newToken');
+        _updateFCMToken(newToken);
+      });
+      
+      // Configure message handlers
+      FirebaseMessaging.onMessage.listen(_handleForegroundMessage);
+      FirebaseMessaging.onMessageOpenedApp.listen(_handleMessageOpenedApp);
+      FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
+      
+      // Check if app was opened from notification
+      RemoteMessage? initialMessage = await _firebaseMessaging!.getInitialMessage();
+      if (initialMessage != null) {
+        _handleMessageOpenedApp(initialMessage);
+      }
+      
+    } catch (e) {
+      print('Error initializing Firebase: $e');
+    }
+  }
+
+  // Handle foreground messages
+  void _handleForegroundMessage(RemoteMessage message) {
+    print('Got a message in foreground!');
+    print('Message data: ${message.data}');
+    
+    if (message.notification != null) {
+      print('Message also contained a notification: ${message.notification}');
+      
+      // Check community filter
+      final msgCommunity = message.data['community_id'] ?? 'all_communities';
+      if (msgCommunity == 'all_communities' || msgCommunity == _currentCommunity || _currentCommunity == 'all_communities') {
+        _showNotification(
+          title: message.notification!.title ?? 'MedApp',
+          body: message.notification!.body ?? '',
+          payload: message.data,
+        );
+      }
+    }
+    
+    // Broadcast to stream
+    _messageController?.add({
+      'type': 'fcm_message',
+      'data': message.data,
+      'notification': message.notification?.toMap(),
+      'timestamp': DateTime.now().toIso8601String(),
+    });
+  }
+
+  // Handle notification tap when app was in background
+  void _handleMessageOpenedApp(RemoteMessage message) {
+    print('Message clicked!');
+    
+    _messageController?.add({
+      'type': 'notification_clicked',
+      'data': message.data,
+      'timestamp': DateTime.now().toIso8601String(),
+    });
+  }
+
+  // Update FCM token on server
+  Future<void> _updateFCMToken(String token) async {
+    if (_currentUserId == null) return;
+    
+    try {
+      await http.post(
+        Uri.parse('$API_BASE_URL/update-fcm-token'),
+        headers: {'Content-Type': 'application/json'},
+        body: json.encode({
+          'user_id': _currentUserId,
+          'fcm_token': token,
+        }),
+      );
+    } catch (e) {
+      print('Error updating FCM token: $e');
+    }
   }
 
   // Initialize local notifications
@@ -108,7 +256,7 @@ class SimplePushService {
     }
   }
 
-  // Register device with community
+  // Register device with community and FCM token
   Future<void> _registerDevice() async {
     try {
       final deviceId = DateTime.now().millisecondsSinceEpoch.toString();
@@ -120,11 +268,12 @@ class SimplePushService {
           'user_id': _currentUserId,
           'device_id': deviceId,
           'community_id': _currentCommunity,
+          'fcm_token': _fcmToken,  // Send FCM token to backend
         }),
       );
       
       if (response.statusCode == 200) {
-        print('✅ Device registered successfully for community: $_currentCommunity');
+        print('✅ Device registered successfully with FCM token');
       }
     } catch (e) {
       print('Error registering device: $e');
@@ -165,7 +314,7 @@ class SimplePushService {
     }
   }
 
-  // Connect to WebSocket
+  // Connect to WebSocket (existing code remains the same)
   void _connectWebSocket() {
     if (_currentUserId == null) return;
     
@@ -227,7 +376,7 @@ class SimplePushService {
     
     switch (messageType) {
       case 'push_notification':
-        // Show local notification
+        // Show local notification for WebSocket messages too
         final notification = data['notification'];
         if (notification != null) {
           // Check if notification is for user's community
