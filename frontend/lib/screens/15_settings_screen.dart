@@ -12,10 +12,9 @@ class SettingsScreen extends StatefulWidget {
 class _SettingsScreenState extends State<SettingsScreen> {
   final _storage = const FlutterSecureStorage();
   
-  // Settings Variablen
-  bool _notificationsEnabled = true;
-  bool _darkModeEnabled = false;
+  // Settings states
   String _selectedLanguage = 'Deutsch';
+  bool _darkModeEnabled = false;
   bool _biometricEnabled = false;
   
   @override
@@ -25,30 +24,24 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
   
   Future<void> _loadSettings() async {
-    // Lade gespeicherte Einstellungen
-    final notifications = await _storage.read(key: 'notifications_enabled');
-    final darkMode = await _storage.read(key: 'dark_mode_enabled');
     final language = await _storage.read(key: 'language');
-    final biometric = await _storage.read(key: 'biometric_enabled');
+    final darkMode = await _storage.read(key: 'dark_mode');
+    final biometric = await _storage.read(key: 'biometric');
     
     setState(() {
-      _notificationsEnabled = notifications != 'false';
-      _darkModeEnabled = darkMode == 'true';
       _selectedLanguage = language ?? 'Deutsch';
+      _darkModeEnabled = darkMode == 'true';
       _biometricEnabled = biometric == 'true';
     });
   }
   
-  Future<void> _saveSettings() async {
-    await _storage.write(key: 'notifications_enabled', value: _notificationsEnabled.toString());
-    await _storage.write(key: 'dark_mode_enabled', value: _darkModeEnabled.toString());
-    await _storage.write(key: 'language', value: _selectedLanguage);
-    await _storage.write(key: 'biometric_enabled', value: _biometricEnabled.toString());
-    
+  Future<void> _saveSetting(String key, String value) async {
+    await _storage.write(key: key, value: value);
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
-        content: Text('Einstellungen gespeichert'),
+        content: Text('Einstellung gespeichert'),
         backgroundColor: Colors.green,
+        duration: Duration(seconds: 1),
       ),
     );
   }
@@ -61,148 +54,172 @@ class _SettingsScreenState extends State<SettingsScreen> {
         centerTitle: true,
       ),
       body: ListView(
-        padding: const EdgeInsets.all(16),
         children: [
-          // Account Section
+          // Profile Section
+          Container(
+            color: Colors.grey.shade100,
+            padding: const EdgeInsets.all(16),
+            child: Row(
+              children: [
+                CircleAvatar(
+                  radius: 40,
+                  backgroundColor: Colors.black,
+                  child: Icon(Icons.person, size: 40, color: Colors.white),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Medical App User',
+                        style: GoogleFonts.lato(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'user@medicalapp.com',
+                        style: GoogleFonts.lato(
+                          fontSize: 14,
+                          color: Colors.grey.shade600,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.edit),
+                  onPressed: () {
+                    // Edit profile
+                  },
+                ),
+              ],
+            ),
+          ),
+          
+          const SizedBox(height: 20),
+          
+          // Account Settings
           _buildSectionHeader('Account'),
-          Card(
-            child: Column(
-              children: [
-                ListTile(
-                  leading: const Icon(Icons.person),
-                  title: Text('Profile', style: GoogleFonts.lato()),
-                  subtitle: Text('Edit your profile information', style: GoogleFonts.lato()),
-                  trailing: const Icon(Icons.arrow_forward_ios),
-                  onTap: () {
-                    // Navigate to profile
-                  },
-                ),
-                const Divider(height: 1),
-                ListTile(
-                  leading: const Icon(Icons.lock),
-                  title: Text('Change Password', style: GoogleFonts.lato()),
-                  trailing: const Icon(Icons.arrow_forward_ios),
-                  onTap: () {
-                    // Navigate to change password
-                  },
-                ),
-              ],
-            ),
+          _buildListTile(
+            icon: Icons.person_outline,
+            title: 'Edit Profile',
+            onTap: () {
+              // Navigate to edit profile
+            },
+          ),
+          _buildListTile(
+            icon: Icons.lock_outline,
+            title: 'Change Password',
+            onTap: () {
+              // Navigate to change password
+            },
+          ),
+          _buildListTile(
+            icon: Icons.email_outlined,
+            title: 'Change Email',
+            onTap: () {
+              // Navigate to change email
+            },
           ),
           
-          const SizedBox(height: 20),
+          const Divider(height: 30),
           
-          // Notifications Section
-          _buildSectionHeader('Notifications'),
-          Card(
-            child: SwitchListTile(
-              secondary: const Icon(Icons.notifications),
-              title: Text('Push Notifications', style: GoogleFonts.lato()),
-              subtitle: Text('Receive notifications about appointments', style: GoogleFonts.lato()),
-              value: _notificationsEnabled,
-              onChanged: (value) {
-                setState(() {
-                  _notificationsEnabled = value;
-                });
-                _saveSettings();
-              },
-            ),
+          // General Settings
+          _buildSectionHeader('General'),
+          ListTile(
+            leading: const Icon(Icons.language),
+            title: Text('Language', style: GoogleFonts.lato()),
+            subtitle: Text(_selectedLanguage, style: GoogleFonts.lato()),
+            trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+            onTap: () => _showLanguageDialog(),
+          ),
+          SwitchListTile(
+            secondary: const Icon(Icons.dark_mode),
+            title: Text('Dark Mode', style: GoogleFonts.lato()),
+            subtitle: Text('Use dark theme', style: GoogleFonts.lato()),
+            value: _darkModeEnabled,
+            onChanged: (value) {
+              setState(() {
+                _darkModeEnabled = value;
+              });
+              _saveSetting('dark_mode', value.toString());
+            },
           ),
           
-          const SizedBox(height: 20),
+          const Divider(height: 30),
           
-          // Appearance Section
-          _buildSectionHeader('Appearance'),
-          Card(
-            child: Column(
-              children: [
-                SwitchListTile(
-                  secondary: const Icon(Icons.dark_mode),
-                  title: Text('Dark Mode', style: GoogleFonts.lato()),
-                  subtitle: Text('Use dark theme', style: GoogleFonts.lato()),
-                  value: _darkModeEnabled,
-                  onChanged: (value) {
-                    setState(() {
-                      _darkModeEnabled = value;
-                    });
-                    _saveSettings();
-                  },
-                ),
-                const Divider(height: 1),
-                ListTile(
-                  leading: const Icon(Icons.language),
-                  title: Text('Language', style: GoogleFonts.lato()),
-                  subtitle: Text(_selectedLanguage, style: GoogleFonts.lato()),
-                  trailing: const Icon(Icons.arrow_forward_ios),
-                  onTap: () => _showLanguageDialog(),
-                ),
-              ],
-            ),
-          ),
-          
-          const SizedBox(height: 20),
-          
-          // Security Section
+          // Security Settings
           _buildSectionHeader('Security'),
-          Card(
-            child: SwitchListTile(
-              secondary: const Icon(Icons.fingerprint),
-              title: Text('Biometric Authentication', style: GoogleFonts.lato()),
-              subtitle: Text('Use fingerprint or face ID', style: GoogleFonts.lato()),
-              value: _biometricEnabled,
-              onChanged: (value) {
-                setState(() {
-                  _biometricEnabled = value;
-                });
-                _saveSettings();
-              },
-            ),
+          SwitchListTile(
+            secondary: const Icon(Icons.fingerprint),
+            title: Text('Biometric Authentication', style: GoogleFonts.lato()),
+            subtitle: Text('Use fingerprint or face ID', style: GoogleFonts.lato()),
+            value: _biometricEnabled,
+            onChanged: (value) {
+              setState(() {
+                _biometricEnabled = value;
+              });
+              _saveSetting('biometric', value.toString());
+            },
+          ),
+          _buildListTile(
+            icon: Icons.security,
+            title: 'Privacy Settings',
+            onTap: () {
+              // Navigate to privacy settings
+            },
           ),
           
-          const SizedBox(height: 20),
+          const Divider(height: 30),
           
-          // About Section
-          _buildSectionHeader('About'),
-          Card(
-            child: Column(
-              children: [
-                ListTile(
-                  leading: const Icon(Icons.info),
-                  title: Text('App Version', style: GoogleFonts.lato()),
-                  subtitle: Text('1.0.0', style: GoogleFonts.lato()),
-                ),
-                const Divider(height: 1),
-                ListTile(
-                  leading: const Icon(Icons.description),
-                  title: Text('Terms of Service', style: GoogleFonts.lato()),
-                  trailing: const Icon(Icons.arrow_forward_ios),
-                  onTap: () {
-                    // Show terms
-                  },
-                ),
-                const Divider(height: 1),
-                ListTile(
-                  leading: const Icon(Icons.privacy_tip),
-                  title: Text('Privacy Policy', style: GoogleFonts.lato()),
-                  trailing: const Icon(Icons.arrow_forward_ios),
-                  onTap: () {
-                    // Show privacy policy
-                  },
-                ),
-              ],
-            ),
+          // Support & Legal
+          _buildSectionHeader('Support & Legal'),
+          _buildListTile(
+            icon: Icons.help_outline,
+            title: 'Help & Support',
+            onTap: () {
+              // Navigate to help
+            },
+          ),
+          _buildListTile(
+            icon: Icons.description_outlined,
+            title: 'Terms of Service',
+            onTap: () {
+              // Show terms
+            },
+          ),
+          _buildListTile(
+            icon: Icons.privacy_tip_outlined,
+            title: 'Privacy Policy',
+            onTap: () {
+              // Show privacy policy
+            },
+          ),
+          _buildListTile(
+            icon: Icons.info_outline,
+            title: 'About',
+            onTap: () => _showAboutDialog(),
           ),
           
           const SizedBox(height: 30),
           
           // Logout Button
-          ElevatedButton.icon(
-            onPressed: () => _showLogoutDialog(),
-            icon: const Icon(Icons.logout),
-            label: Text('Logout', style: GoogleFonts.lato()),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.red,
-              padding: const EdgeInsets.symmetric(vertical: 16),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: ElevatedButton.icon(
+              onPressed: () => _showLogoutDialog(),
+              icon: const Icon(Icons.logout),
+              label: Text('Logout', style: GoogleFonts.lato()),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.red,
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
             ),
           ),
           
@@ -214,15 +231,31 @@ class _SettingsScreenState extends State<SettingsScreen> {
   
   Widget _buildSectionHeader(String title) {
     return Padding(
-      padding: const EdgeInsets.only(left: 4, bottom: 8),
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
       child: Text(
-        title,
+        title.toUpperCase(),
         style: GoogleFonts.lato(
-          fontSize: 18,
+          fontSize: 13,
           fontWeight: FontWeight.bold,
-          color: Colors.black87,
+          color: Colors.grey.shade600,
+          letterSpacing: 0.5,
         ),
       ),
+    );
+  }
+  
+  Widget _buildListTile({
+    required IconData icon,
+    required String title,
+    String? subtitle,
+    required VoidCallback onTap,
+  }) {
+    return ListTile(
+      leading: Icon(icon),
+      title: Text(title, style: GoogleFonts.lato()),
+      subtitle: subtitle != null ? Text(subtitle, style: GoogleFonts.lato()) : null,
+      trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+      onTap: onTap,
     );
   }
   
@@ -242,7 +275,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 setState(() {
                   _selectedLanguage = value!;
                 });
-                _saveSettings();
+                _saveSetting('language', value!);
                 Navigator.pop(context);
               },
             ),
@@ -254,7 +287,19 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 setState(() {
                   _selectedLanguage = value!;
                 });
-                _saveSettings();
+                _saveSetting('language', value!);
+                Navigator.pop(context);
+              },
+            ),
+            RadioListTile<String>(
+              title: Text('Español', style: GoogleFonts.lato()),
+              value: 'Español',
+              groupValue: _selectedLanguage,
+              onChanged: (value) {
+                setState(() {
+                  _selectedLanguage = value!;
+                });
+                _saveSetting('language', value!);
                 Navigator.pop(context);
               },
             ),
@@ -264,12 +309,45 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
   
+  void _showAboutDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('About MedApp', style: GoogleFonts.lato()),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Medical App', style: GoogleFonts.lato(fontWeight: FontWeight.bold)),
+            const SizedBox(height: 8),
+            Text('Version: 1.0.0', style: GoogleFonts.lato()),
+            const SizedBox(height: 4),
+            Text('Build: 2024.1', style: GoogleFonts.lato()),
+            const SizedBox(height: 16),
+            Text('© 2024 MedApp Team', style: GoogleFonts.lato()),
+            const SizedBox(height: 8),
+            Text('All rights reserved.', style: GoogleFonts.lato()),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text('Close', style: GoogleFonts.lato()),
+          ),
+        ],
+      ),
+    );
+  }
+  
   void _showLogoutDialog() {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
         title: Text('Logout', style: GoogleFonts.lato()),
-        content: Text('Are you sure you want to logout?', style: GoogleFonts.lato()),
+        content: Text(
+          'Are you sure you want to logout?',
+          style: GoogleFonts.lato(),
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
@@ -277,7 +355,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
           ElevatedButton(
             onPressed: () async {
-              // Clear storage
+              // Clear all stored data
               await _storage.deleteAll();
               
               // Navigate to login
@@ -288,7 +366,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 );
               }
             },
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+            ),
             child: Text('Logout', style: GoogleFonts.lato()),
           ),
         ],
