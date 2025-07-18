@@ -16,7 +16,7 @@ from passlib.context import CryptContext
 from bson import ObjectId
 
 # Reference to the MongoDB users collection
-from backend.db import users_collection
+from backend.db import patients_collection
 
 
 # ---------- Configuration ----------
@@ -77,7 +77,7 @@ def create_access_token(sub: str) -> str:
     return jwt.encode(payload, SECRET_KEY, algorithm=ALGORITHM)
 
 
-def get_current_user(token: str = Depends(oauth2_scheme)) -> dict:
+def get_current_patient(token: str = Depends(oauth2_scheme)) -> dict:
     """
     Dependency for protected endpoints. Extracts the current user from a JWT token.
 
@@ -110,12 +110,12 @@ def get_current_user(token: str = Depends(oauth2_scheme)) -> dict:
         )
 
     # Fetch the user from the database using the extracted ID
-    user = users_collection.find_one({"_id": ObjectId(user_id)})
+    patient = patients_collection.find_one({"_id": ObjectId(user_id)})
 
-    if not user:
+    if not patient:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="User not found"
         )
 
-    return user
+    return patient

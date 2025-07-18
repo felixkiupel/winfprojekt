@@ -8,10 +8,10 @@ from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 
 # MongoDB users collection (holds all registered users)
-from backend.db import users_collection
+from backend.db import patients_collection
 
 # Function that extracts and verifies the current user from a JWT
-from backend.auth_utils import get_current_user
+from backend.auth_utils import get_current_patient
 
 
 # Create a router object so we can modularize routes and include them in main.py
@@ -45,7 +45,7 @@ def ping():
 
 
 @router.get("/patient/me", response_model=PatientProfile)
-def read_patient_me(current_user: dict = Depends(get_current_user)):
+def read_patient_me(current_user: dict = Depends(get_current_patient)):
     """
     Returns the profile of the currently authenticated user (patient).
 
@@ -76,7 +76,7 @@ def read_patient_all():
     Returns:
         A list of PatientProfile objects.
     """
-    all_users_cursor = users_collection.find()
+    all_users_cursor = patients_collection.find()
     patients = []
 
     for user in all_users_cursor:
@@ -87,6 +87,8 @@ def read_patient_all():
         ))
 
     return patients
+
+
 
 
 # Example usage:

@@ -26,62 +26,14 @@ db = client["med-app"]
 
 # Access the "users" collection inside the "med-app" database
 # This collection will store user documents (e.g. email, password, med_id, etc.)
-users_collection = db["users"]
+patients_collection = db["patients"]
+doctors_collection = db["doctors"]
 # Access the "community" collection inside the "med-app" database
 community_collection = db["community"]
 
-messages_collection = db["messages"]
+com_messages_collection = db["com-messages"]
+dm_collection = db["dm-messages"]
 
+# Einmalig, verhindert doppelte titles:
+community_collection.create_index("title", unique=True)
 
-# === New file: backend/community.py ===
-from typing import List
-from fastapi import APIRouter, Depends, HTTPException, status
-from pydantic import BaseModel
-
-from backend.db import community_collection
-from backend.auth_utils import get_current_user
-
-# Define a router for community-related endpoints
-router = APIRouter(
-    prefix="/community",
-    tags=["community"],
-)
-
-# Pydantic model for a Community document
-class Community(BaseModel):
-    title: str
-    description: str
-    avg_messages: int
-
-@router.post("/", response_model=Community, status_code=status.HTTP_201_CREATED)
-def create_community(
-        community: Community,
-        current_user = Depends(get_current_user)
-):
-    """
-    Create a new community with a title, description, and average message count.
-    """
-    # Optional: enforce permissions or user roles here
-    insert_result = community_collection.insert_one(community.dict())
-    if not insert_result.inserted_id:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to create community"
-        )
-    return community
-
-@router.get("/", response_model=List[Community])
-def list_communities():
-    """
-    Retrieve a list of all communities.
-    """
-    cursor = community_collection.find({}, {"_id": False})
-    return [Community(**c) for c in cursor]
-
-
-# === Changes to existing file: backend/auth_service.py ===
-# 1. Import the community router at the top of the file (along with patient):
-#    from backend import community
-
-# 2. Include the community router after including patient routes:
-#    app.include_router(community.router)

@@ -1,12 +1,10 @@
-# backend/app.py
-
 from fastapi import FastAPI, status
 from pydantic import BaseModel, Field
 from typing import List
 from datetime import datetime
 from bson import ObjectId
 
-from backend.db import messages_collection
+from backend.db import com_messages_collection
 
 # Eingangs-Schema für PUT /messages
 class MessageIn(BaseModel):
@@ -36,7 +34,7 @@ async def log_message(msg: MessageIn):
     Body: { date, community, title, message }
     """
     doc = msg.dict()
-    result = messages_collection.insert_one(doc)
+    result = com_messages_collection.insert_one(doc)
     # Rückgabe: das frisch erzeugte Document mit String-ID
     doc["_id"] = str(result.inserted_id)
     return doc
@@ -49,7 +47,7 @@ async def get_messages():
     """
     Liefert alle geloggten Nachrichten, sortiert nach Datum absteigend.
     """
-    cursor = messages_collection.find().sort("date", -1)
+    cursor = com_messages_collection.find().sort("date", -1)
     out = []
     for doc in cursor:
         doc["_id"] = str(doc["_id"])

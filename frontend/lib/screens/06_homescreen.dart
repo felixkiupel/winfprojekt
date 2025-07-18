@@ -2,7 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:medapp/screens/10_CommunityMenu.dart';
-import 'package:medapp/screens/11_Messages.dart';
+import 'package:medapp/screens/11_SendMessageCommunity.dart';
+import 'package:medapp/screens/12_ReceiveMessageCommunity.dart';
+import 'package:medapp/screens/13_ChatPartnerSelection.dart';
+import 'package:medapp/screens/14_DirectChatScreen.dart';
 import '02b_login.dart';
 import '09_DoctorUploadScreen.dart';
 import '07_SosScreen.dart';
@@ -126,10 +129,28 @@ class _HomeScreenTemplateState extends State<HomeScreenTemplate> {
             ),
             ListTile(
               leading: const Icon(Icons.message_outlined),
-              title: Text('Push-Benachrichtigung', style: GoogleFonts.lato()),
+              title: Text('Doctor: Send Message', style: GoogleFonts.lato()),
               onTap: () {
                 Navigator.of(context).push(
                   MaterialPageRoute(builder: (_) => const CommunityPostScreen()),
+                );
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.message_rounded),
+              title: Text('Patient: Receive Message', style: GoogleFonts.lato()),
+              onTap: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const CommunityFeedScreen()),
+                );
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.mark_chat_read_outlined),
+              title: Text('Chat', style: GoogleFonts.lato()),
+              onTap: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const ChatPartnerSelectionScreen()),
                 );
               },
             ),

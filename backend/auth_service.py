@@ -10,7 +10,7 @@ from fastapi.security import OAuth2PasswordBearer
 from pydantic import BaseModel, EmailStr
 
 # Database connection (MongoDB collection)
-from backend.db import users_collection
+from backend.db import patients_collection
 
 # Import the patient-related routes (GET endpoints)
 from backend import patient
@@ -75,7 +75,7 @@ class PatientProfile(BaseModel):
 @app.post("/login", response_model=TokenResponse)
 def login(data: LoginRequest):
     # Try to find a user by email (case-insensitive, trimmed)
-    user = users_collection.find_one({"email": data.email.lower().strip()})
+    user = patients_collection.find_one({"email": data.email.lower().strip()})
 
     # If user doesn't exist, return 401 Unauthorized
     if not user:
@@ -102,20 +102,19 @@ def register(data: RegisterRequest):
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Passwords do not match")
 
     # Check if the email is already in use
-    if users_collection.find_one({"email": email}):
+    if patients_collection.find_one({"email": email}):
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="E-Mail already registered")
 
     # Hash the password for secure storage
     hashed_pw = pwd_context.hash(data.password)
 
     # Insert new user data into the database
-    result = users_collection.insert_one({
+    result = patients_collection.insert_one({
         "email": email,
         "password": hashed_pw,
         "firstname": data.firstname.strip(),
         "lastname": data.lastname.strip(),
         "med_id": data.med_id.strip(),
-        "role": "patient"  # Default role assignment (can be extended later)
     })
 
     # Generate JWT token for the newly created user
