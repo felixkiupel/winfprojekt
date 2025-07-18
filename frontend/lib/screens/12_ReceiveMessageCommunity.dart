@@ -46,13 +46,6 @@ class _CommunityFeedScreenState extends State<CommunityFeedScreen> {
     return 'http://$host:8000';
   })();
 
-  // ---------------------------- MOCK DATA -----------------------------
-  static const String _mockMessagesJson = '''[
-    {"id":"1","date":"2025-07-17T12:00:00Z","community":"Community A","title":"Willkommen","message":"Willkommen in unserer Community!","sender":"Dr. Smith"},
-    {"id":"2","date":"2025-07-16T09:00:00Z","community":"Community B","title":"Neue Studie","message":"Bitte lesen Sie die neue Studie...","sender":"Dr. Miller"}
-  ]''';
-  // --------------------------------------------------------------------
-
   @override
   void initState() {
     super.initState();
@@ -131,9 +124,6 @@ class _CommunityFeedScreenState extends State<CommunityFeedScreen> {
         throw Exception('Status ${res.statusCode}');
       }
     } catch (_) {
-      // Fallback auf lokale JSON
-      final list = json.decode(_mockMessagesJson) as List<dynamic>;
-      setState(() => _messages = list.map((e) => MessageItem.fromJson(e)).toList());
     } finally {
       setState(() => _isRefreshing = false);
     }
