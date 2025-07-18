@@ -2,6 +2,7 @@ from typing import List
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 
+from backend.crypto_utils import decrypt_field
 from backend.db import doctors_collection
 from backend.auth_utils import get_current_patient
 
@@ -23,9 +24,9 @@ def read_doctor_me(current_user: dict = Depends(get_current_patient)):
     Profil des aktuell angemeldeten Arztes
     """
     return DoctorProfile(
-        firstname=current_user["firstname"],
-        lastname=current_user["lastname"],
-        med_id=current_user["med_id"],
+        firstname=decrypt_field(current_user["firstname"]),
+        lastname=decrypt_field(current_user["lastname"]),
+        med_id=decrypt_field(current_user["med_id"]),
     )
 
 @router.get("/doctor/all", response_model=List[DoctorProfile])
@@ -36,9 +37,9 @@ def read_doctor_all():
     docs = []
     for doc in doctors_collection.find():
         docs.append(DoctorProfile(
-            firstname=doc.get("firstname"),
-            lastname=doc.get("lastname"),
-            med_id=doc.get("med_id"),
+            firstname=decrypt_field(doc.get("firstname")),
+            lastname=decrypt_field(doc.get("lastname")),
+            med_id=decrypt_field(doc.get("med_id")),
         ))
     return docs
 

@@ -82,9 +82,9 @@ def read_patient_all():
 
     for user in all_users_cursor:
         patients.append(PatientProfile(
-            firstname=user["firstname"],
-            lastname=user["lastname"],
-            med_id=user["med_id"],
+            firstname=decrypt_field(user["firstname"]),
+            lastname=decrypt_field(user["lastname"]),
+            med_id=decrypt_field(user["med_id"]),
         ))
 
     return patients
