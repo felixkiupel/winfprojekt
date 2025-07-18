@@ -10,6 +10,7 @@ import 'package:medapp/screens/05_registration_form_screen.dart';
 import 'screens/01_welcome.dart';
 import 'screens/02b_login.dart';
 import 'screens/06_homescreen.dart';
+import 'screens/15_settings_screen.dart';
 
 // ── Farbdefinitions-Block ────────────────────────────────────────────
 const Color kMedicalPrimary              = Color(0xFFF5FFF6);
@@ -89,6 +90,7 @@ class MyApp extends StatelessWidget {
         '/welcome': (_) => const WelcomeScreen(),
         '/login': (_) => const LoginScreen(),
         '/home': (_) => const HomeScreenTemplate(),
+        '/settings': (_) => const SettingsScreen(),
       },
     );
   }

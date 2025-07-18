@@ -422,15 +422,17 @@ class _ActivityTile extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) => ListTile(
-    leading: Icon(icon, color: Colors.black54),
-    title: Text(
-      title,
-      style: GoogleFonts.lato(fontSize: 16, fontWeight: FontWeight.w600),
-    ),
-    subtitle: Text(subtitle, style: GoogleFonts.lato(color: Colors.black54)),
-    trailing: const Icon(Icons.arrow_forward_ios, size: 16),
-    contentPadding: const EdgeInsets.symmetric(horizontal: 0, vertical: 8),
-    onTap: onTap,
-  );
+  Widget build(BuildContext context) {
+    return ListTile(
+      leading: Icon(icon, color: Colors.black54),
+      title: Text(
+        title,
+        style: GoogleFonts.lato(fontSize: 16, fontWeight: FontWeight.w600),
+      ),
+      subtitle: Text(subtitle, style: GoogleFonts.lato(color: Colors.black54)),
+      trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 0, vertical: 8),
+      onTap: () {},
+    );
+  }
 }
