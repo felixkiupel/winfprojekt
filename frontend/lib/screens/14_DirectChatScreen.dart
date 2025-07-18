@@ -251,7 +251,7 @@ class _DirectChatScreenState extends State<DirectChatScreen> {
                 controller: _textCtrl,
                 textCapitalization: TextCapitalization.sentences,
                 decoration: InputDecoration(
-                  hintText: 'Nachricht eingeben…',
+                  hintText: 'Enter message...',
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(20),
                   ),
