@@ -7,7 +7,6 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:http/http.dart' as http;
 import '12_LogScreen.dart';
 
-
 // BASE-URL Definition
 late final String _baseUrl = (() {
   const envUrl = String.fromEnvironment('API_URL');
@@ -15,6 +14,21 @@ late final String _baseUrl = (() {
   final host = Platform.isAndroid ? '10.0.2.2' : '127.0.0.1';
   return 'http://$host:8000';
 })();
+
+/// Modell für Community
+class Community {
+  final String name;
+  final String description;
+
+  Community({required this.name, required this.description});
+
+  factory Community.fromJson(Map<String, dynamic> json) {
+    return Community(
+      name: json['name'] as String,
+      description: json['description'] as String,
+    );
+  }
+}
 
 class CommunityPostScreen extends StatefulWidget {
   const CommunityPostScreen({Key? key}) : super(key: key);
@@ -27,20 +41,22 @@ class _CommunityPostScreenState extends State<CommunityPostScreen> {
   final _formKey = GlobalKey<FormState>();
   final TextEditingController _titleController = TextEditingController();
   final TextEditingController _bodyController = TextEditingController();
-  String? _selectedCommunity;
+  Community? _selectedCommunity;
   bool _isSending = false;
+  bool _isLoading = true;
+  String? _error;
 
   late final FlutterLocalNotificationsPlugin _localNotif;
-
-  final List<String> _communities = [
-    'Community A',
-    'Community B',
-    'Community C',
-  ];
+  List<Community> _communities = [];
 
   @override
   void initState() {
     super.initState();
+    _initNotifications();
+    _fetchCommunities();
+  }
+
+  void _initNotifications() {
     _localNotif = FlutterLocalNotificationsPlugin();
     const androidSettings = AndroidInitializationSettings('@mipmap/ic_launcher');
     const iosSettings = DarwinInitializationSettings(
@@ -48,9 +64,31 @@ class _CommunityPostScreenState extends State<CommunityPostScreen> {
       requestBadgePermission: true,
       requestSoundPermission: true,
     );
-    _localNotif.initialize(
-      const InitializationSettings(android: androidSettings, iOS: iosSettings),
-    );
+    _localNotif.initialize(const InitializationSettings(android: androidSettings, iOS: iosSettings));
+  }
+
+  Future<void> _fetchCommunities() async {
+    try {
+      final uri = Uri.parse('$_baseUrl/communitys/all');
+      final resp = await http.get(uri);
+      if (resp.statusCode == 200) {
+        final List<dynamic> data = jsonDecode(resp.body);
+        setState(() {
+          _communities = data.map((e) => Community.fromJson(e)).toList();
+          _isLoading = false;
+        });
+      } else {
+        setState(() {
+          _error = 'Fehler beim Laden der Communities (${resp.statusCode})';
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      setState(() {
+        _error = 'Netzwerkfehler: $e';
+        _isLoading = false;
+      });
+    }
   }
 
   @override
@@ -78,12 +116,11 @@ class _CommunityPostScreenState extends State<CommunityPostScreen> {
     );
   }
 
-  /// Loggt die Nachricht per PUT an /messages
   Future<void> _logMessage() async {
     final uri = Uri.parse('$_baseUrl/com_messages');
     final payload = jsonEncode({
       'date': DateTime.now().toIso8601String(),
-      'community': _selectedCommunity,
+      'community': _selectedCommunity?.name,
       'title': _titleController.text,
       'message': _bodyController.text,
     });
@@ -93,7 +130,6 @@ class _CommunityPostScreenState extends State<CommunityPostScreen> {
       body: payload,
     );
     if (resp.statusCode < 200 || resp.statusCode >= 300) {
-      // Optional: Fehlerbehandlung
       debugPrint('Log-Request fehlgeschlagen: ${resp.statusCode}');
     }
   }
@@ -102,19 +138,12 @@ class _CommunityPostScreenState extends State<CommunityPostScreen> {
     if (!_formKey.currentState!.validate()) return;
     setState(() => _isSending = true);
 
-    // Simulierter API-Call
+    // Hier könnte ein richtiger API-Call kommen
     await Future.delayed(const Duration(seconds: 1));
 
-    // Notification mit den eingegebenen Werten
-    await _showNotification(
-      _titleController.text,
-      _bodyController.text,
-    );
-
-    // Nachricht loggen
+    await _showNotification(_titleController.text, _bodyController.text);
     await _logMessage();
 
-    // Zurücksetzen
     _formKey.currentState!.reset();
     setState(() {
       _selectedCommunity = null;
@@ -128,24 +157,21 @@ class _CommunityPostScreenState extends State<CommunityPostScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(
-          'Neue Nachricht',
-          style: GoogleFonts.lato(fontWeight: FontWeight.w700),
-        ),
+        title: Text('Neue Nachricht', style: GoogleFonts.lato(fontWeight: FontWeight.w700)),
         centerTitle: true,
         actions: [
           TextButton(
-            onPressed: () {
-              Navigator.of(context).push(
-                MaterialPageRoute(builder: (_) => const LogScreen()),
-              );
-            },
+            onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const LogScreen())),
             child: Text('Log', style: GoogleFonts.lato(color: Colors.white)),
           ),
         ],
       ),
       body: Center(
-        child: SingleChildScrollView(
+        child: _isLoading
+            ? const CircularProgressIndicator()
+            : _error != null
+            ? Text(_error!, style: TextStyle(color: Colors.red))
+            : SingleChildScrollView(
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
             child: Form(
@@ -174,17 +200,41 @@ class _CommunityPostScreenState extends State<CommunityPostScreen> {
                     validator: (v) => (v == null || v.isEmpty) ? 'Bitte Text eingeben' : null,
                   ),
                   const SizedBox(height: 16),
-                  DropdownButtonFormField<String>(
+                  DropdownButtonFormField<Community>(
                     value: _selectedCommunity,
                     hint: Text('Community auswählen', style: GoogleFonts.lato()),
                     decoration: InputDecoration(
                       labelText: 'Community',
                       border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
                     ),
+                    // Nur Namen anzeigen, wenn eine Auswahl getroffen wurde
+                    selectedItemBuilder: (BuildContext context) {
+                      return _communities.map<Widget>((Community c) {
+                        return Text(c.name, style: GoogleFonts.lato());
+                      }).toList();
+                    },
                     items: _communities
-                        .map((c) => DropdownMenuItem(value: c, child: Text(c, style: GoogleFonts.lato())))
+                        .map(
+                          (c) => DropdownMenuItem<Community>(
+                        value: c,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(c.name, style: GoogleFonts.lato(fontWeight: FontWeight.bold)),
+                            const SizedBox(height: 4),
+                            Text(
+                              c.description,
+                              style: GoogleFonts.lato(fontSize: 12, color: Colors.grey[600]),
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            const Divider(height: 16),
+                          ],
+                        ),
+                      ),
+                    )
                         .toList(),
-                    onChanged: (v) => setState(() => _selectedCommunity = v),
+                    onChanged: (c) => setState(() => _selectedCommunity = c),
                     validator: (v) => v == null ? 'Bitte eine Community wählen' : null,
                   ),
                   const SizedBox(height: 24),
@@ -197,11 +247,7 @@ class _CommunityPostScreenState extends State<CommunityPostScreen> {
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                       ),
                       child: _isSending
-                          ? const SizedBox(
-                        width: 24,
-                        height: 24,
-                        child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                      )
+                          ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
                           : Text('Senden', style: GoogleFonts.lato(fontSize: 16)),
                     ),
                   ),

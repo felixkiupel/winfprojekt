@@ -6,16 +6,12 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
+import 'package:timeago/timeago.dart' as timeago;
 
 import '02b_login.dart';
-import '09_DoctorUploadScreen.dart';
-import '07_SosScreen.dart';
-import '08_MedicalDocumentScreen.dart';
 import '10_CommunityMenu.dart';
-import '11_SendMessageCommunity.dart';
 import '12_ReceiveMessageCommunity.dart';
-import '13_ChatPartnerSelection.dart';
-import '14_DirectChatScreen.dart';
+import 'fragments/a_sidebar.dart';
 
 class HomeScreenTemplate extends StatefulWidget {
   const HomeScreenTemplate({super.key});
@@ -28,6 +24,10 @@ class _HomeScreenTemplateState extends State<HomeScreenTemplate> {
   final _storage = const FlutterSecureStorage();
   int _totalUnread = 0;
 
+  String? _firstName;
+  bool _hasCommunities = true;
+  List<MessageItem> _communityMessages = [];
+
   late final String _baseUrl = (() {
     const envUrl = String.fromEnvironment('API_URL');
     if (envUrl.isNotEmpty) return envUrl;
@@ -39,7 +39,9 @@ class _HomeScreenTemplateState extends State<HomeScreenTemplate> {
   void initState() {
     super.initState();
     _checkAuth();
+    _loadPatientProfile();
     _loadUnreadCount();
+    _loadCommunitiesAndMessages();
   }
 
   Future<void> _checkAuth() async {
@@ -51,11 +53,28 @@ class _HomeScreenTemplateState extends State<HomeScreenTemplate> {
     }
   }
 
+  Future<void> _loadPatientProfile() async {
+    try {
+      final token = await _storage.read(key: 'jwt');
+      if (token == null) return;
+      final res = await http.get(
+        Uri.parse('$_baseUrl/patient/me'),
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Accept': 'application/json',
+        },
+      ).timeout(const Duration(seconds: 10));
+      if (res.statusCode == 200) {
+        final data = json.decode(res.body) as Map<String, dynamic>;
+        setState(() => _firstName = data['firstname'] as String?);
+      }
+    } catch (_) {}
+  }
+
   Future<void> _loadUnreadCount() async {
     try {
       final token = await _storage.read(key: 'jwt');
       if (token == null) return;
-
       final res = await http.get(
         Uri.parse('$_baseUrl/dm/partners'),
         headers: {
@@ -63,18 +82,56 @@ class _HomeScreenTemplateState extends State<HomeScreenTemplate> {
           'Accept': 'application/json',
         },
       ).timeout(const Duration(seconds: 10));
-
       if (res.statusCode == 200) {
         final list = json.decode(res.body) as List<dynamic>;
         int sum = 0;
         for (var e in list) {
-          final m = e as Map<String, dynamic>;
-          sum += (m['unreadCount'] as int?) ?? 0;
+          sum += (e['unreadCount'] as int?) ?? 0;
         }
         setState(() => _totalUnread = sum);
       }
-    } catch (e) {
-      debugPrint('Fehler beim Laden des Unread-Counts: $e');
+    } catch (_) {}
+  }
+
+  Future<void> _loadCommunitiesAndMessages() async {
+    final token = await _storage.read(key: 'jwt');
+    if (token == null) return;
+
+    final commRes = await http.get(
+      Uri.parse('$_baseUrl/communitys/me'),
+      headers: {
+        'Authorization': 'Bearer $token',
+        'Accept': 'application/json',
+      },
+    ).timeout(const Duration(seconds: 10));
+
+    if (commRes.statusCode != 200) {
+      setState(() => _hasCommunities = false);
+      return;
+    }
+    final comms = (json.decode(commRes.body) as List).cast<String>();
+    if (comms.isEmpty) {
+      setState(() => _hasCommunities = false);
+      return;
+    }
+
+    final uri = Uri.parse(
+      '$_baseUrl/messages?communities=${Uri.encodeComponent(comms.join(','))}',
+    );
+    final msgRes = await http.get(
+      uri,
+      headers: {
+        'Authorization': 'Bearer $token',
+        'Accept': 'application/json',
+      },
+    ).timeout(const Duration(seconds: 10));
+
+    if (msgRes.statusCode == 200) {
+      final list = json.decode(msgRes.body) as List<dynamic>;
+      final fetched = list
+          .map((e) => MessageItem.fromJson(e as Map<String, dynamic>))
+          .toList();
+      setState(() => _communityMessages = fetched.take(3).toList());
     }
   }
 
@@ -87,10 +144,15 @@ class _HomeScreenTemplateState extends State<HomeScreenTemplate> {
     );
   }
 
+  String _formatRelativeTime(DateTime date) =>
+      timeago.format(date, locale: 'de');
+
   @override
   Widget build(BuildContext context) {
+    final welcomeText = _firstName != null
+        ? 'Welcome back, $_firstName!'
+        : 'Welcome back!';
     return Scaffold(
-      // Sobald das Drawer geöffnet wird, neu laden
       onDrawerChanged: (isOpen) {
         if (isOpen) _loadUnreadCount();
       },
@@ -107,147 +169,10 @@ class _HomeScreenTemplateState extends State<HomeScreenTemplate> {
         elevation: 4,
         centerTitle: true,
       ),
-      drawer: Drawer(
-        child: ListView(
-          padding: EdgeInsets.zero,
-          children: [
-            DrawerHeader(
-              decoration: const BoxDecoration(color: Colors.black),
-              child: Center(
-                child: Text(
-                  'Menu',
-                  style: GoogleFonts.lato(
-                    color: Colors.white,
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ),
-            ),
-            ListTile(
-              leading: const Icon(Icons.home),
-              title: Text('Home', style: GoogleFonts.lato()),
-              onTap: () => Navigator.pop(context),
-            ),
-            ListTile(
-              leading: const Icon(Icons.person),
-              title: Text('Profile', style: GoogleFonts.lato()),
-              onTap: () {
-                // Navigator.push(...)
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.settings),
-              title: Text('Settings', style: GoogleFonts.lato()),
-              onTap: () {
-                // Navigator.push(...)
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.cloud_upload_outlined),
-              title:
-              Text('Doctor Document Upload', style: GoogleFonts.lato()),
-              onTap: () {
-                Navigator.of(context).push(
-                  MaterialPageRoute(builder: (_) => const DoctorUploadScreen()),
-                );
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.cloud_download_outlined),
-              title: Text('Offline Documents', style: GoogleFonts.lato()),
-              onTap: () {
-                Navigator.of(context).push(
-                  MaterialPageRoute(
-                      builder: (_) => const PatientDocumentsScreen()),
-                );
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.group),
-              title: Text('Communitys', style: GoogleFonts.lato()),
-              onTap: () {
-                Navigator.of(context).push(
-                  MaterialPageRoute(
-                      builder: (_) => const CommunitySelectionScreen()),
-                );
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.message_outlined),
-              title: Text('Doctor: Send Message', style: GoogleFonts.lato()),
-              onTap: () {
-                Navigator.of(context).push(
-                  MaterialPageRoute(
-                      builder: (_) => const CommunityPostScreen()),
-                );
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.message_rounded),
-              title:
-              Text('Patient: Receive Message', style: GoogleFonts.lato()),
-              onTap: () {
-                Navigator.of(context).push(
-                  MaterialPageRoute(
-                      builder: (_) => const CommunityFeedScreen()),
-                );
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.mark_chat_read_outlined),
-              title: Row(
-                children: [
-                  Text('Chat', style: GoogleFonts.lato()),
-                  if (_totalUnread > 0) ...[
-                    const SizedBox(width: 8),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 6, vertical: 2),
-                      decoration: BoxDecoration(
-                        color: Colors.teal,
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Text(
-                        '$_totalUnread',
-                        style: GoogleFonts.lato(
-                          color: Colors.white,
-                          fontSize: 12,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                  ],
-                ],
-              ),
-              onTap: () {
-                Navigator.of(context)
-                    .push(
-                  MaterialPageRoute(
-                    builder: (_) => const ChatPartnerSelectionScreen(),
-                  ),
-                )
-                    .then((_) => _loadUnreadCount());
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.sos_rounded),
-              title: Text('Emergency GEO Localisation',
-                  style: GoogleFonts.lato()),
-              onTap: () {
-                Navigator.of(context).push(
-                  MaterialPageRoute(builder: (_) => const SOSScreen()),
-                );
-              },
-            ),
-            const Divider(),
-            ListTile(
-              leading: const Icon(Icons.logout),
-              title: Text('Logout', style: GoogleFonts.lato()),
-              onTap: _logout,
-            ),
-          ],
-        ),
+      drawer: Sidebar(
+        totalUnread: _totalUnread,
+        loadUnreadCount: _loadUnreadCount,
+        logout: _logout,
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
@@ -255,7 +180,7 @@ class _HomeScreenTemplateState extends State<HomeScreenTemplate> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Text(
-              'Welcome back!',
+              welcomeText,
               style: GoogleFonts.lato(
                 fontSize: 28,
                 fontWeight: FontWeight.bold,
@@ -269,7 +194,7 @@ class _HomeScreenTemplateState extends State<HomeScreenTemplate> {
               children: [
                 _FeatureCard(
                   icon: Icons.medical_services,
-                  label: 'Medical',
+                  label: 'Community Moderation',
                   color: Colors.green.shade600,
                   onTap: () {},
                 ),
@@ -289,46 +214,61 @@ class _HomeScreenTemplateState extends State<HomeScreenTemplate> {
             ),
             const SizedBox(height: 32),
             Text(
-              'Recent Activities',
+              'Recent Community Activities',
               style: GoogleFonts.lato(
                 fontSize: 20,
                 fontWeight: FontWeight.w600,
               ),
             ),
             const SizedBox(height: 16),
-            _ActivityTile(
-              title: 'QR code scanned',
-              subtitle: '5 minutes ago',
-              icon: Icons.qr_code_scanner,
-            ),
-            _ActivityTile(
-              title: 'Password changed',
-              subtitle: 'Yesterday, 2:30 PM',
-              icon: Icons.lock_reset,
-            ),
-            _ActivityTile(
-              title: 'New document uploaded',
-              subtitle: '2 days ago',
-              icon: Icons.upload_file,
-            ),
+            if (!_hasCommunities)
+              Center(
+                child: Text(
+                  'Du bist noch in keiner Community.',
+                  style:
+                  GoogleFonts.lato(fontSize: 16, color: Colors.black54),
+                ),
+              )
+            else if (_communityMessages.isEmpty)
+              const Center(child: CircularProgressIndicator())
+            else
+              ..._communityMessages.map(
+                    (m) => _ActivityTile(
+                  title: m.title,
+                  subtitle: _formatRelativeTime(m.date),
+                  icon: Icons.forum,
+                  onTap: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => const CommunityFeedScreen(),
+                      ),
+                    );
+                  },
+                ),
+              ),
             const SizedBox(height: 32),
-            ElevatedButton.icon(
+            OutlinedButton.icon(
               onPressed: () {
-                // Neue Aktion
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => const CommunitySelectionScreen(),
+                  ),
+                );
               },
               icon: const Icon(Icons.add),
               label: Text(
-                'New Action',
+                'Select Communities',
                 style: GoogleFonts.lato(
                   fontSize: 18,
                   fontWeight: FontWeight.w600,
                 ),
               ),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.black,
+              style: OutlinedButton.styleFrom(
+                side: const BorderSide(color: Colors.black),
                 padding: const EdgeInsets.symmetric(vertical: 16),
                 shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10)),
+                  borderRadius: BorderRadius.circular(10),
+                ),
               ),
             ),
           ],
@@ -389,11 +329,13 @@ class _ActivityTile extends StatelessWidget {
   final String title;
   final String subtitle;
   final IconData icon;
+  final VoidCallback onTap;
 
   const _ActivityTile({
     required this.title,
     required this.subtitle,
     required this.icon,
+    required this.onTap,
   });
 
   @override
@@ -402,12 +344,15 @@ class _ActivityTile extends StatelessWidget {
       leading: Icon(icon, color: Colors.black54),
       title: Text(
         title,
-        style: GoogleFonts.lato(fontSize: 16, fontWeight: FontWeight.w600),
+        style:
+        GoogleFonts.lato(fontSize: 16, fontWeight: FontWeight.w600),
       ),
-      subtitle: Text(subtitle, style: GoogleFonts.lato(color: Colors.black54)),
+      subtitle:
+      Text(subtitle, style: GoogleFonts.lato(color: Colors.black54)),
       trailing: const Icon(Icons.arrow_forward_ios, size: 16),
-      contentPadding: const EdgeInsets.symmetric(horizontal: 0, vertical: 8),
-      onTap: () {},
+      contentPadding:
+      const EdgeInsets.symmetric(horizontal: 0, vertical: 8),
+      onTap: onTap,
     );
   }
 }

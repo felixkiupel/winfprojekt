@@ -135,6 +135,7 @@ class MyApp extends StatelessWidget {
         ),
         hintStyle: GoogleFonts.lato(color: medicalColorScheme.onSurfaceVariant),
         labelStyle: GoogleFonts.lato(color: medicalColorScheme.onSurface),
+        floatingLabelStyle: GoogleFonts.lato(color: medicalColorScheme.onSurface),
         prefixStyle: GoogleFonts.lato(color: medicalColorScheme.onSurface),
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
@@ -166,6 +167,8 @@ class MyApp extends StatelessWidget {
         ),
       ),
     );
+
+
   }
 }
 

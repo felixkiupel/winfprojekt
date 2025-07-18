@@ -62,7 +62,7 @@ class _DoctorUploadScreenState extends State<DoctorUploadScreen> {
   }
 
   Future<void> _loadPatients() async {
-    final url = Uri.parse('$_baseUrl/patient/all');
+    final url = Uri.parse('$_baseUrl/patient/patients');
 
     try {
       final response = await http.get(url);

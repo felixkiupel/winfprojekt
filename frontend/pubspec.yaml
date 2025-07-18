@@ -49,6 +49,7 @@ dependencies:
   file_picker: ^6.2.1
   flutter_cached_pdfview: ^0.4.3
   dio: ^5.3.1
+  timeago: ^3.1.0
 
 
 
