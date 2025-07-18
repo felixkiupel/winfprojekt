@@ -8,6 +8,8 @@ import 'package:http/http.dart' as http;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 
+import '14_DirectChatScreen.dart'; // ggf. anpassen, falls Pfad anders
+
 /// ----------------------------------------------------------------------------
 /// DirectChatScreen
 /// ----------------------------------------------------------------------------
@@ -37,7 +39,6 @@ class _DirectChatScreenState extends State<DirectChatScreen> {
   late Timer _pollTimer;
   bool _isSending = false;
   bool _isLoading = true;
-
   String? _myId;
 
   // Basis-URL analog zu anderen Screens
@@ -48,13 +49,6 @@ class _DirectChatScreenState extends State<DirectChatScreen> {
     return 'http://$host:8000';
   })();
 
-  // ---------------------------- MOCK DATA -----------------------------
-  static const String _mockChatJson = '''[
-    {"id":"1","date":"2025-07-18T10:00:00Z","senderId":"doctor123","text":"Guten Morgen, wie geht es Ihnen heute?","read":true},
-    {"id":"2","date":"2025-07-18T10:02:00Z","senderId":"patient456","text":"Es geht schon besser, danke!","read":false}
-  ]''';
-  // --------------------------------------------------------------------
-
   @override
   void initState() {
     super.initState();
@@ -63,13 +57,19 @@ class _DirectChatScreenState extends State<DirectChatScreen> {
 
   Future<void> _init() async {
     await _fetchProfile();
+    await _markAsRead();    // beim Öffnen alles als gelesen markieren
     await _fetchMessages();
 
     // Poll alle 5 s nach neuen Nachrichten
-    _pollTimer = Timer.periodic(const Duration(seconds: 5), (_) => _fetchMessages());
+    _pollTimer = Timer.periodic(
+      const Duration(seconds: 5),
+          (_) async {
+        await _markAsRead();
+        await _fetchMessages();
+      },
+    );
   }
 
-  /// Holt eigene User-ID aus /patient/me (oder /doctor/me)
   Future<void> _fetchProfile() async {
     try {
       final token = await _secureStorage.read(key: 'jwt');
@@ -82,21 +82,35 @@ class _DirectChatScreenState extends State<DirectChatScreen> {
           'Accept': 'application/json',
         },
       ).timeout(const Duration(seconds: 10));
+
       if (res.statusCode == 200) {
         final data = json.decode(res.body) as Map<String, dynamic>;
         _myId = data['med_id']?.toString() ?? data['id']?.toString();
       }
     } catch (_) {
-      // Fallback: bleibt null → Mock-Daten
+      // Fallback: bleibt null → ggf. Mock-Daten
+    }
+  }
+
+  Future<void> _markAsRead() async {
+    if (_myId == null) return;
+    try {
+      final token = await _secureStorage.read(key: 'jwt');
+      if (token == null) return;
+
+      await http.patch(
+        Uri.parse('$_baseUrl/dm/${widget.partnerId}/read'),
+        headers: {'Authorization': 'Bearer $token'},
+      );
+    } catch (_) {
+      // Ignorieren
     }
   }
 
   Future<void> _fetchMessages() async {
     if (_myId == null) {
-      // Fallback auf Dummy
-      final list = json.decode(_mockChatJson) as List<dynamic>;
       setState(() {
-        _messages = list.map((e) => ChatMessage.fromJson(e)).toList();
+        _messages = [];
         _isLoading = false;
       });
       _scrollToBottom();
@@ -123,20 +137,10 @@ class _DirectChatScreenState extends State<DirectChatScreen> {
           _isLoading = false;
         });
         _scrollToBottom();
-
-        // Alle empfangenen Nachrichten als gelesen markieren
-        await http.patch(
-          Uri.parse('$_baseUrl/dm/${widget.partnerId}/read'),
-          headers: {
-            'Authorization': 'Bearer $token',
-          },
-        );
       }
     } catch (_) {
-      // Fallback auf Dummy
-      final list = json.decode(_mockChatJson) as List<dynamic>;
       setState(() {
-        _messages = list.map((e) => ChatMessage.fromJson(e)).toList();
+        _messages = [];
         _isLoading = false;
       });
       _scrollToBottom();
@@ -208,7 +212,8 @@ class _DirectChatScreenState extends State<DirectChatScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(widget.partnerName, style: GoogleFonts.lato(fontWeight: FontWeight.w700)),
+        title: Text(widget.partnerName,
+            style: GoogleFonts.lato(fontWeight: FontWeight.w700)),
         centerTitle: true,
       ),
       body: _isLoading
@@ -218,45 +223,57 @@ class _DirectChatScreenState extends State<DirectChatScreen> {
           Expanded(
             child: ListView.builder(
               controller: _scrollCtrl,
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 16),
+              padding:
+              const EdgeInsets.symmetric(horizontal: 12, vertical: 16),
               itemCount: _messages.length,
               itemBuilder: (ctx, i) {
                 final m = _messages[i];
                 final isMe = m.senderId == _myId;
                 return Align(
-                  alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
+                  alignment:
+                  isMe ? Alignment.centerRight : Alignment.centerLeft,
                   child: ChatBubble(message: m, isMe: isMe),
-                ).animate().fadeIn(duration: 300.ms).slideY(begin: 0.1, end: 0);
+                )
+                    .animate()
+                    .fadeIn(duration: 300.ms)
+                    .slideY(begin: 0.1, end: 0);
               },
             ),
           ),
           const Divider(height: 1),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-            child: TextField(
-              controller: _textCtrl,
-              textCapitalization: TextCapitalization.sentences,
-              decoration: InputDecoration(
-                hintText: 'Nachricht eingeben…',
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                suffixIcon: _isSending
-                    ? Padding(
-                  padding: const EdgeInsets.all(12.0),
-                  child: SizedBox(
-                    width: 20,
-                    height: 20,
-                    child: CircularProgressIndicator(strokeWidth: 2),
+          // SafeArea sorgt dafür, dass die Leiste oben/unten nicht überlappt
+          SafeArea(
+            top: false,
+            child: Padding(
+              padding:
+              const EdgeInsets.symmetric(horizontal: 20, vertical: 30),
+              child: TextField(
+                controller: _textCtrl,
+                textCapitalization: TextCapitalization.sentences,
+                decoration: InputDecoration(
+                  hintText: 'Enter message...',
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(20),
                   ),
-                )
-                    : IconButton(
-                  icon: const Icon(Icons.send_rounded),
-                  onPressed: _sendMessage,
+                  contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 14, vertical: 10),
+                  suffixIcon: _isSending
+                      ? Padding(
+                    padding: const EdgeInsets.all(12.0),
+                    child: SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(
+                          strokeWidth: 2),
+                    ),
+                  )
+                      : IconButton(
+                    icon: const Icon(Icons.send_rounded),
+                    onPressed: _sendMessage,
+                  ),
                 ),
+                onSubmitted: (_) => _sendMessage(),
               ),
-              onSubmitted: (_) => _sendMessage(),
             ),
           ),
         ],
@@ -265,9 +282,9 @@ class _DirectChatScreenState extends State<DirectChatScreen> {
   }
 }
 
-// -----------------------------------------------------------------------------
-// ChatMessage-Modell mit Read-Status
-// -----------------------------------------------------------------------------
+/// -----------------------------------------------------------------------------
+/// ChatMessage-Modell mit Read-Status
+/// -----------------------------------------------------------------------------
 class ChatMessage {
   final String id;
   final DateTime date;
@@ -284,13 +301,14 @@ class ChatMessage {
   });
 
   factory ChatMessage.fromJson(Map<String, dynamic> json) => ChatMessage(
-    id: json['id']?.toString() ?? json['_id']?.toString() ?? UniqueKey().toString(),
+    id: json['id']?.toString() ??
+        json['_id']?.toString() ??
+        UniqueKey().toString(),
     date: DateTime.parse(json['date'] as String),
     senderId: json['senderId'] as String? ?? 'unknown',
     text: json['text'] as String? ?? '',
     read: json['read'] as bool? ?? false,
   );
-
   Map<String, dynamic> toJson() => {
     'id': id,
     'date': date.toIso8601String(),
@@ -300,14 +318,15 @@ class ChatMessage {
   };
 }
 
-// -----------------------------------------------------------------------------
-// Bubble-Widget mit Read/Unread-Icon
-// -----------------------------------------------------------------------------
+/// -----------------------------------------------------------------------------
+/// Bubble-Widget mit Drop Shadow & Read/Unread-Kreis
+/// -----------------------------------------------------------------------------
 class ChatBubble extends StatelessWidget {
   final ChatMessage message;
   final bool isMe;
 
-  const ChatBubble({Key? key, required this.message, required this.isMe}) : super(key: key);
+  const ChatBubble({Key? key, required this.message, required this.isMe})
+      : super(key: key);
 
   @override
   Widget build(BuildContext context) {
@@ -319,11 +338,15 @@ class ChatBubble extends StatelessWidget {
         : Theme.of(context).colorScheme.onSurfaceVariant;
 
     return Stack(
+      clipBehavior: Clip.none, // erlaubt Überlappen nach außen
       children: [
         Container(
           margin: const EdgeInsets.symmetric(vertical: 4),
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-          constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.7),
+          // extra Platz rechts für das Icon
+          padding: const EdgeInsets.fromLTRB(14, 10, 30, 10),
+          constraints: BoxConstraints(
+            maxWidth: MediaQuery.of(context).size.width * 0.7,
+          ),
           decoration: BoxDecoration(
             color: bg,
             borderRadius: BorderRadius.only(
@@ -332,16 +355,39 @@ class ChatBubble extends StatelessWidget {
               bottomLeft: Radius.circular(isMe ? 16 : 0),
               bottomRight: Radius.circular(isMe ? 0 : 16),
             ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black26,
+                blurRadius: 4,
+                offset: Offset(0, 2),
+              ),
+            ],
           ),
-          child: Text(message.text, style: GoogleFonts.lato(color: fg)),
+          child: Text(
+            message.text,
+            style: GoogleFonts.lato(color: fg),
+          ),
         ),
+
         if (isMe)
           Positioned(
-            bottom: 2,
-            right: 6,
-            child: Icon(
-              message.read ? Icons.done_all : Icons.done,
-              size: 16,
+            // negative Werte, damit das Icon wirklich in der Ecke „herausschaut“
+            bottom: -4,
+            right: -4,
+            child: Container(
+              width: 20,
+              height: 20,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: message.read ? Colors.green : Colors.grey,
+              ),
+              child: Icon(
+                message.read
+                    ? Icons.done_all_rounded
+                    : Icons.done_rounded,
+                size: 12,
+                color: Colors.white,
+              ),
             ),
           ),
       ],

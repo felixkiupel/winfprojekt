@@ -6,21 +6,26 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:http/http.dart' as http;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+
 import '14_DirectChatScreen.dart';
 
 /// ---------------------------------------------------------------------------
 /// ChatPartnerSelectionScreen
 /// ---------------------------------------------------------------------------
-/// Lädt alle Patienten per API und ermöglicht Auswahl eines Chat-Partners.
+/// Zeigt zuerst alle bisherigen Chat-Partner mit ungelesenem-Badge
+/// und unten das Dropdown, um neue Chats zu starten.
 class ChatPartnerSelectionScreen extends StatefulWidget {
   const ChatPartnerSelectionScreen({Key? key}) : super(key: key);
 
   @override
-  State<ChatPartnerSelectionScreen> createState() => _ChatPartnerSelectionScreenState();
+  State<ChatPartnerSelectionScreen> createState() =>
+      _ChatPartnerSelectionScreenState();
 }
 
-class _ChatPartnerSelectionScreenState extends State<ChatPartnerSelectionScreen> {
+class _ChatPartnerSelectionScreenState
+    extends State<ChatPartnerSelectionScreen> {
   final _secureStorage = const FlutterSecureStorage();
+
   late final String _baseUrl = (() {
     const env = String.fromEnvironment('API_URL');
     if (env.isNotEmpty) return env;
@@ -28,8 +33,11 @@ class _ChatPartnerSelectionScreenState extends State<ChatPartnerSelectionScreen>
     return 'http://$host:8000';
   })();
 
+  List<Map<String, dynamic>> _recentPartners = [];
   List<Map<String, String>> _partners = [];
   bool _isLoading = true;
+
+  String? _currentRole;
   String? _selectedPartnerId;
   String? _selectedPartnerName;
 
@@ -40,37 +48,78 @@ class _ChatPartnerSelectionScreenState extends State<ChatPartnerSelectionScreen>
   }
 
   Future<void> _loadPartners() async {
+    setState(() => _isLoading = true);
     try {
       final token = await _secureStorage.read(key: 'jwt');
-      final uri = Uri.parse('$_baseUrl/patient/all');
-      final res = await http.get(
-        uri,
-        headers: {
-          if (token != null) 'Authorization': 'Bearer $token',
-          'Accept': 'application/json',
-        },
-      ).timeout(const Duration(seconds: 10));
-      if (res.statusCode == 200) {
-        final list = json.decode(res.body) as List<dynamic>;
-        setState(() {
-          _partners = list.map((e) {
-            final map = e as Map<String, dynamic>;
-            final firstname = map['firstname'] as String;
-            final lastname = map['lastname'] as String;
-            return {
-              'id': map['med_id'] as String,
-              'name': '$firstname $lastname',
-            };
-          }).toList();
-          _isLoading = false;
-        });
-      } else {
-        throw Exception('Failed to load patients');
+      if (token == null) throw Exception('No Token found');
+
+      // 1) Profil abrufen, um Rolle zu kennen
+      final profileRes = await http
+          .get(Uri.parse('$_baseUrl/patient/me'),
+          headers: {'Authorization': 'Bearer $token'})
+          .timeout(const Duration(seconds: 10));
+      if (profileRes.statusCode != 200) {
+        throw Exception('Failed to load profile');
+      }
+      final profile = json.decode(profileRes.body) as Map<String, dynamic>;
+      _currentRole = profile['role'] as String?;
+
+      // 2) Bisherige Chat-Partner laden
+      final recentRes = await http
+          .get(Uri.parse('$_baseUrl/dm/partners'), headers: {
+        'Authorization': 'Bearer $token',
+        'Accept': 'application/json',
+      })
+          .timeout(const Duration(seconds: 10));
+      if (recentRes.statusCode == 200) {
+        final list = json.decode(recentRes.body) as List<dynamic>;
+        _recentPartners = list.map((e) {
+          final m = e as Map<String, dynamic>;
+          return {
+            'id': m['med_id'] as String,
+            'name': '${m['firstname']} ${m['lastname']}',
+            'unreadCount': (m['unreadCount'] as int?) ?? 0,
+          };
+        }).toList();
+      }
+
+      // 3) Alle Gegenrollen laden und gechattete entfernen
+      final endpoint =
+      (_currentRole == 'doctor') ? '/patient/patients' : '/patient/doctors';
+      final allRes = await http
+          .get(Uri.parse('$_baseUrl$endpoint'), headers: {
+        'Authorization': 'Bearer $token',
+        'Accept': 'application/json',
+      })
+          .timeout(const Duration(seconds: 10));
+      if (allRes.statusCode == 200) {
+        final list = json.decode(allRes.body) as List<dynamic>;
+        _partners = list
+            .map((e) {
+          final m = e as Map<String, dynamic>;
+          return {
+            'id': m['med_id'] as String,
+            'name': '${m['firstname']} ${m['lastname']}',
+          };
+        })
+            .where((p) => !_recentPartners.any((r) => r['id'] == p['id']))
+            .toList();
+
+        // -----------------------------------------------------------------
+        // FIX 1: prüfen, ob die aktuelle Auswahl noch existiert – sonst nullen
+        // -----------------------------------------------------------------
+        if (!_partners.any((p) => p['id'] == _selectedPartnerId)) {
+          _selectedPartnerId = null;
+          _selectedPartnerName = null;
+        }
       }
     } catch (e) {
-      // Fallback: leere Liste oder Fehlermeldung
+      debugPrint('Failed to load associates: $e');
+    } finally {
+      // --------------------------------------------------------
+      // FIX 1 (Fortsetzung): State-Update inklusive _isLoading
+      // --------------------------------------------------------
       setState(() => _isLoading = false);
-      // Optional: SnackBar mit Fehler
     }
   }
 
@@ -78,78 +127,124 @@ class _ChatPartnerSelectionScreenState extends State<ChatPartnerSelectionScreen>
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('Partner auswählen', style: GoogleFonts.lato(fontWeight: FontWeight.w700)),
+        title: Text(
+          'Chat Partner',
+          style: GoogleFonts.lato(fontWeight: FontWeight.w700),
+        ),
         centerTitle: true,
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
-          : Padding(
+          : ListView(
         padding: const EdgeInsets.all(16),
-        child: Column(
-          children: [
-            DropdownButtonFormField<String>(
-              decoration: InputDecoration(
-                labelText: 'Chat-Partner',
-                border: OutlineInputBorder(),
-                contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              ),
-              hint: Text('Partner wählen', style: GoogleFonts.lato()),
-              value: _selectedPartnerId,
-              items: _partners.map((partner) {
-                final name = partner['name']!;
-                final initials = name
-                    .split(' ')
-                    .map((e) => e.isNotEmpty ? e[0] : '')
-                    .take(2)
-                    .join();
-                return DropdownMenuItem<String>(
-                  value: partner['id'],
-                  child: Row(
-                    children: [
-                      CircleAvatar(
-                        radius: 18,
-                        backgroundColor: Theme.of(context).colorScheme.primaryContainer,
-                        child: Text(
-                          initials,
-                          style: GoogleFonts.lato(
-                            color: Theme.of(context).colorScheme.onPrimaryContainer,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Text(name, style: GoogleFonts.lato()),
-                    ],
-                  ),
-                );
-              }).toList(),
-              onChanged: (value) {
-                setState(() {
-                  _selectedPartnerId = value;
-                  _selectedPartnerName = _partners.firstWhere((p) => p['id'] == value)['name'];
-                });
-              },
+        children: [
+          if (_recentPartners.isNotEmpty) ...[
+            Text(
+              'Last Chats',
+              style: Theme.of(context).textTheme.titleLarge,
             ),
-            const SizedBox(height: 24),
-            ElevatedButton.icon(
-              icon: const Icon(Icons.chat),
-              label: Text('Chat starten', style: GoogleFonts.lato()),
-              onPressed: _selectedPartnerId == null
-                  ? null
-                  : () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => DirectChatScreen(
-                      partnerId: _selectedPartnerId!,
-                      partnerName: _selectedPartnerName!,
+            const SizedBox(height: 8),
+            ..._recentPartners.map((partner) {
+              final initials = partner['name']!
+                  .split(' ')
+                  .map((s) => s.isNotEmpty ? s[0] : '')
+                  .take(2)
+                  .join();
+              final unread = partner['unreadCount'] as int;
+              return ListTile(
+                leading: CircleAvatar(child: Text(initials)),
+                title: Text(partner['name']!),
+                trailing: unread > 0
+                    ? CircleAvatar(
+                  radius: 14,
+                  backgroundColor: Colors.teal,
+                  child: Text(
+                    unread.toString(),
+                    style: GoogleFonts.lato(
+                      color: Colors.white,
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
                     ),
                   ),
-                );
-              },
-            ),
+                )
+                    : null,
+                onTap: () async {
+                  await Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => DirectChatScreen(
+                        partnerId: partner['id']!,
+                        partnerName: partner['name']!,
+                      ),
+                    ),
+                  );
+                  await _loadPartners();
+                },
+              );
+            }).toList(),
+            const Divider(height: 32),
           ],
-        ),
+
+          Text(
+            'Start new chat',
+            style: Theme.of(context).textTheme.titleLarge,
+          ),
+          const SizedBox(height: 8),
+
+          DropdownButtonFormField<String>(
+            decoration: InputDecoration(
+              labelText: 'Select partner',
+              border: OutlineInputBorder(),
+              contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 12, vertical: 8),
+            ),
+            hint: Text('Select partner', style: GoogleFonts.lato()),
+            value: _selectedPartnerId,
+            items: _partners.map((partner) {
+              final initials = partner['name']!
+                  .split(' ')
+                  .map((s) => s.isNotEmpty ? s[0] : '')
+                  .take(2)
+                  .join();
+              return DropdownMenuItem<String>(
+                value: partner['id'],
+                child: Row(
+                  children: [
+                    CircleAvatar(child: Text(initials)),
+                    const SizedBox(width: 12),
+                    Text(partner['name']!, style: GoogleFonts.lato()),
+                  ],
+                ),
+              );
+            }).toList(),
+            onChanged: (value) {
+              setState(() {
+                _selectedPartnerId = value;
+                _selectedPartnerName = _partners
+                    .firstWhere((p) => p['id'] == value)['name'];
+              });
+            },
+          ),
+          const SizedBox(height: 24),
+
+          ElevatedButton.icon(
+            icon: const Icon(Icons.chat),
+            label: Text('Start chat', style: GoogleFonts.lato()),
+            onPressed: _selectedPartnerId == null
+                ? null
+                : () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => DirectChatScreen(
+                    partnerId: _selectedPartnerId!,
+                    partnerName: _selectedPartnerName!,
+                  ),
+                ),
+              ).then((_) => _loadPartners());
+            },
+          ),
+        ],
       ),
     );
   }

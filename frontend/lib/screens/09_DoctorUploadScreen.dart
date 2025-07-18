@@ -62,12 +62,12 @@ class _DoctorUploadScreenState extends State<DoctorUploadScreen> {
   }
 
   Future<void> _loadPatients() async {
-    final url = Uri.parse('$_baseUrl/patient/all');
+    final url = Uri.parse('$_baseUrl/patient/patients');
 
     try {
       final response = await http.get(url);
       print('Statuscode: ${response.statusCode}');
-      print('Antwort-Body: ${response.body}');
+      print('Answer-Body: ${response.body}');
 
       if (response.statusCode == 200) {
         final List<dynamic> data = jsonDecode(response.body);
@@ -85,13 +85,13 @@ class _DoctorUploadScreenState extends State<DoctorUploadScreen> {
             _patients.addAll(fetchedPatients);
           });
         } else {
-          print('⚠️ Leere Patientenliste erhalten.');
+          print('⚠️ Patient List was empty.');
         }
       } else {
-        print('❌ API-Fehler: ${response.statusCode}');
+        print('❌ API-Error: ${response.statusCode}');
       }
     } catch (e) {
-      print('❌ Fehler beim Abrufen der Patienten: $e');
+      print('❌ Failed to call Patient-Profile: $e');
     }
   }
 
@@ -127,12 +127,12 @@ class _DoctorUploadScreenState extends State<DoctorUploadScreen> {
 
       await _localNotif.show(
         0,
-        'Upload erfolgreich',
-        'Dein Dokument wurde hochgeladen.',
+        'Upload successful',
+        'Your Document was successfully uploaded.',
         NotificationDetails(
           android: AndroidNotificationDetails(
             'upload_channel', 'Document Uploads',
-            channelDescription: 'Nur Demo-Success',
+            channelDescription: 'Only Demo-Success',
             importance: Importance.max,
             priority: Priority.high,
           ),
@@ -278,14 +278,14 @@ class _DoctorUploadScreenState extends State<DoctorUploadScreen> {
                     ),
                   ),
                   Positioned(
-                    top: 150,
+                    top: 50,
                     left: 0,
                     right: 0,
                     child: Center(
                       child: Icon(
                         Icons.cloud_upload,
-                        size: 80,
-                        color: Colors.grey,
+                        size: 120,
+                        color: Colors.black87,
                       ),
                     ),
                   ),

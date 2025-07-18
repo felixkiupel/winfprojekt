@@ -116,7 +116,7 @@ class MyApp extends StatelessWidget {
         bodyLarge: GoogleFonts.lato(color: medicalColorScheme.onSurface),
         bodyMedium: GoogleFonts.lato(color: medicalColorScheme.onSurface),
         titleMedium: GoogleFonts.lato(color: medicalColorScheme.onSurface),
-        titleSmall: GoogleFonts.lato(color: medicalColorScheme.onSurfaceVariant),
+        titleSmall: GoogleFonts.lato(color: medicalColorScheme.onSurface),
       ),
       inputDecorationTheme: InputDecorationTheme(
         border: OutlineInputBorder(
@@ -137,6 +137,7 @@ class MyApp extends StatelessWidget {
         ),
         hintStyle: GoogleFonts.lato(color: medicalColorScheme.onSurfaceVariant),
         labelStyle: GoogleFonts.lato(color: medicalColorScheme.onSurface),
+        floatingLabelStyle: GoogleFonts.lato(color: medicalColorScheme.onSurface),
         prefixStyle: GoogleFonts.lato(color: medicalColorScheme.onSurface),
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
@@ -168,6 +169,8 @@ class MyApp extends StatelessWidget {
         ),
       ),
     );
+
+
   }
 }
 

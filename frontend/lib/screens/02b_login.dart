@@ -86,7 +86,6 @@ class _LoginScreenState extends State<LoginScreen> {
     return Scaffold(
       appBar: AppBar(
         title: Text('Sign In', style: GoogleFonts.lato(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w600)),
-        backgroundColor: Colors.black,
         elevation: 6,
         centerTitle: true,
       ),

@@ -46,13 +46,6 @@ class _CommunityFeedScreenState extends State<CommunityFeedScreen> {
     return 'http://$host:8000';
   })();
 
-  // ---------------------------- MOCK DATA -----------------------------
-  static const String _mockMessagesJson = '''[
-    {"id":"1","date":"2025-07-17T12:00:00Z","community":"Community A","title":"Willkommen","message":"Willkommen in unserer Community!","sender":"Dr. Smith","status":"Unread"},
-    {"id":"2","date":"2025-07-16T09:00:00Z","community":"Community B","title":"Neue Studie","message":"Bitte lesen Sie die neue Studie...","sender":"Dr. Miller","status":"Unread"}
-  ]''';
-  // --------------------------------------------------------------------
-
   @override
   void initState() {
     super.initState();
@@ -76,17 +69,16 @@ class _CommunityFeedScreenState extends State<CommunityFeedScreen> {
 
   Future<void> _fetchAll() async {
     setState(() => _isLoading = true);
-    await Future.wait([
-      _fetchProfileAndCommunities(),
-      _fetchMessages(),
-    ]);
+    await _fetchProfileAndCommunities();
+    await _fetchMessages();
     setState(() => _isLoading = false);
   }
+
 
   Future<void> _fetchProfileAndCommunities() async {
     try {
       final token = await _secureStorage.read(key: 'jwt');
-      if (token == null) throw Exception('Kein Token');
+      if (token == null) throw Exception('No token');
 
       // Profil
       final profRes = await http.get(
@@ -115,27 +107,23 @@ class _CommunityFeedScreenState extends State<CommunityFeedScreen> {
     setState(() => _isRefreshing = true);
     try {
       final token = await _secureStorage.read(key: 'jwt');
-      if (token == null) throw Exception('Kein Token');
+      if (token == null) throw Exception('No Token');
 
       final uri = Uri.parse(
         '$_baseUrl/messages?communities=${_userCommunities.join(',')}',
       );
       final res = await http.get(
         uri,
-        headers: {
-          'Authorization': 'Bearer $token',
-          'Accept': 'application/json',
-        },
+        headers: {'Authorization': 'Bearer $token', 'Accept': 'application/json'},
       ).timeout(const Duration(seconds: 10));
 
       if (res.statusCode == 200) {
         final list = json.decode(res.body) as List<dynamic>;
-        _messages = list.map((e) => MessageItem.fromJson(e)).toList();
+        setState(() => _messages = list.map((e) => MessageItem.fromJson(e)).toList());
+      } else {
+        throw Exception('Status ${res.statusCode}');
       }
     } catch (_) {
-      // Fallback auf lokale JSON
-      final list = json.decode(_mockMessagesJson) as List<dynamic>;
-      _messages = list.map((e) => MessageItem.fromJson(e)).toList();
     } finally {
       setState(() => _isRefreshing = false);
     }
@@ -158,52 +146,41 @@ class _CommunityFeedScreenState extends State<CommunityFeedScreen> {
           children: [
             Text(m.message, style: GoogleFonts.lato(fontSize: 16)),
             const SizedBox(height: 12),
-            Text('Von: ${m.sender}',
-                style: GoogleFonts.lato(fontSize: 14, color: Colors.grey)),
+            Text('Von: ${m.sender}', style: GoogleFonts.lato(fontSize: 14, color: Colors.grey)),
           ],
         ),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Schließen'),
-          )
+          TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text('Close'))
         ],
       ),
     );
   }
 
   String _groupHeader(DateTime d) {
-    // Gruppiert nach Datum (DD.MM.YYYY)
     return '${d.day.toString().padLeft(2, '0')}.${d.month.toString().padLeft(2, '0')}.${d.year}';
   }
 
   @override
   Widget build(BuildContext context) {
-    if (_isLoading) {
-      return const Scaffold(body: Center(child: CircularProgressIndicator()));
-    }
+    if (_isLoading) return const Scaffold(body: Center(child: CircularProgressIndicator()));
 
-    // Sortiere messages absteigend nach Datum
     _messages.sort((a, b) => b.date.compareTo(a.date));
 
     return Scaffold(
       appBar: AppBar(
-        title: Text('Community Nachrichten', style: GoogleFonts.lato(fontWeight: FontWeight.w700)),
+        title: Text('Community Notifications', style: GoogleFonts.lato(fontWeight: FontWeight.w700)),
         centerTitle: true,
       ),
       body: RefreshIndicator(
         onRefresh: _fetchMessages,
         child: _messages.isEmpty
-            ? ListView(
-          children: const [SizedBox(height: 300), Center(child: Text('Keine Nachrichten'))],
-        )
+            ? ListView(children: const [SizedBox(height: 300), Center(child: Text('No Notifications'))])
             : ListView.builder(
           padding: const EdgeInsets.all(16),
           itemCount: _messages.length,
           itemBuilder: (ctx, i) {
             final m = _messages[i];
-            final showHeader = i == 0 ||
-                _groupHeader(m.date) != _groupHeader(_messages[i - 1].date);
+            final showHeader = i == 0 || _groupHeader(m.date) != _groupHeader(_messages[i - 1].date);
             return Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -219,10 +196,8 @@ class _CommunityFeedScreenState extends State<CommunityFeedScreen> {
                   elevation: 1,
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                   child: ListTile(
-                    leading: Icon(
-                      _isRead(m.id) ? Icons.mark_email_read : Icons.mark_email_unread,
-                      color: Theme.of(context).colorScheme.primary,
-                    ),
+                    leading: Icon(_isRead(m.id) ? Icons.mark_email_read : Icons.mark_email_unread,
+                        color: Theme.of(context).colorScheme.onSurface),
                     title: Text(m.title, style: GoogleFonts.lato(fontWeight: FontWeight.w600)),
                     subtitle: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -235,8 +210,23 @@ class _CommunityFeedScreenState extends State<CommunityFeedScreen> {
                           style: GoogleFonts.lato(),
                         ),
                         const SizedBox(height: 8),
-                        Text('Community: ${m.community}',
-                            style: GoogleFonts.lato(fontSize: 12, color: Colors.grey)),
+                        Row(
+                          children: [
+                            const Icon(
+                              Icons.groups,
+                              size: 14,
+                              color: Colors.green,
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              m.community,
+                              style: GoogleFonts.lato(
+                                fontSize: 12,
+                                color: Colors.green,
+                              ),
+                            ),
+                          ],
+                        ),
                       ],
                     ),
                     onTap: () => _onMessageTap(m),
@@ -262,14 +252,7 @@ class MessageItem {
   final String message;
   final String sender;
 
-  MessageItem({
-    required this.id,
-    required this.date,
-    required this.community,
-    required this.title,
-    required this.message,
-    required this.sender,
-  });
+  MessageItem({required this.id, required this.date, required this.community, required this.title, required this.message, required this.sender});
 
   factory MessageItem.fromJson(Map<String, dynamic> json) {
     return MessageItem(
@@ -282,12 +265,5 @@ class MessageItem {
     );
   }
 
-  Map<String, dynamic> toJson() => {
-    'id': id,
-    'date': date.toIso8601String(),
-    'community': community,
-    'title': title,
-    'message': message,
-    'sender': sender,
-  };
+  Map<String, dynamic> toJson() => {'id': id, 'date': date.toIso8601String(), 'community': community, 'title': title, 'message': message, 'sender': sender};
 }
