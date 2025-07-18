@@ -2,7 +2,7 @@
 from dotenv import load_dotenv
 
 # FastAPI imports
-from fastapi import FastAPI, HTTPException, status, Depends
+from fastapi import FastAPI, HTTPException, status, Depends, APIRouter
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import OAuth2PasswordBearer
 
@@ -25,21 +25,14 @@ from backend.auth_utils import (
 
 # Encryption helpers
 from backend.crypto_utils import encrypt_field, decrypt_field
+from backend.patient import router
 
 # Load env
 load_dotenv()
 
 # FastAPI app
-app = FastAPI(title="Med-App Login Service")
+router = APIRouter()
 
-# CORS
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
 
 # OAuth2 scheme
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/login")
@@ -69,7 +62,7 @@ class PatientProfile(BaseModel):
 
 # ---------- Routes ----------
 
-@app.post("/login", response_model=TokenResponse)
+@router.post("/login", response_model=TokenResponse)
 def login(data: LoginRequest):
     user = patients_collection.find_one({"email": data.email.lower().strip()})
     if not user:
@@ -82,7 +75,7 @@ def login(data: LoginRequest):
     return {"access_token": token, "token_type": "bearer"}
 
 
-@app.post("/register", response_model=TokenResponse)
+@router.post("/register", response_model=TokenResponse)
 def register(data: RegisterRequest):
     email = data.email.lower().strip()
 
@@ -110,7 +103,7 @@ def register(data: RegisterRequest):
     return {"access_token": token, "token_type": "bearer"}
 
 
-@app.get("/profile", response_model=PatientProfile)
+@router.get("/profile", response_model=PatientProfile)
 def get_profile(token: str = Depends(oauth2_scheme)):
     user_id = get_user_from_token(token)
     user = patients_collection.find_one({"_id": user_id})
@@ -124,9 +117,9 @@ def get_profile(token: str = Depends(oauth2_scheme)):
     )
 
 
-@app.get("/ping")
+@router.get("/ping")
 def ping():
     return {"msg": "pong"}
 
 # Include other patient routes
-app.include_router(patient.router)
+router.include_router(patient.router)

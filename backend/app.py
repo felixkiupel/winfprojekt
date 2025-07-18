@@ -21,6 +21,7 @@ from backend.patient import router as patient_router
 from backend.community import router as community_router
 from backend.dm_message import router as dm_message_router
 from backend.com_message import router as com_message_router
+from backend.auth_service import  router as auth_service_router
 
 
 
@@ -82,42 +83,6 @@ class MessageOut(BaseModel):
     message: str
 
 
-# ---------- AUTH-ENDPOINTS ----------
-
-@app.post("/login", response_model=TokenResponse)
-def login(data: LoginRequest):
-    user = patients_collection.find_one({"email": data.email.lower().strip()})
-    if not user:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User does not exist")
-    if not verify_password(data.password, user["password"]):
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Wrong password")
-    token = create_access_token(str(user["_id"]))
-    return {"access_token": token, "token_type": "bearer"}
-
-
-@app.post("/register", response_model=TokenResponse)
-def register(data: RegisterRequest):
-    email = data.email.lower().strip()
-    if data.password != data.password_confirm:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Passwords do not match")
-    if patients_collection.find_one({"email": email}):
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="E-Mail already registered")
-    hashed_pw = pwd_context.hash(data.password)
-    result = patients_collection.insert_one({
-        "email": email,
-        "password": hashed_pw,
-        "firstname": data.firstname.strip(),
-        "lastname": data.lastname.strip(),
-        "med_id": data.med_id.strip(),
-        "role": "patient"
-    })
-    token = create_access_token(str(result.inserted_id))
-    return {"access_token": token, "token_type": "bearer"}
-
-
-@app.get("/ping")
-def ping():
-    return {"msg": "pong"}
 
 
 # ---------- PATIENT-ROUTER ----------
@@ -128,6 +93,7 @@ app.include_router(dm_message_router)
 
 # ---------- COM-MESSAGE ----------
 app.include_router(com_message_router)
+app.include_router(auth_service_router)
 
 
 
