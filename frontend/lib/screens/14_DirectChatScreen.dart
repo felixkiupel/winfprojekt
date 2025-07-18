@@ -39,7 +39,6 @@ class _DirectChatScreenState extends State<DirectChatScreen> {
   late Timer _pollTimer;
   bool _isSending = false;
   bool _isLoading = true;
-
   String? _myId;
 
   // Basis-URL analog zu anderen Screens
@@ -58,8 +57,7 @@ class _DirectChatScreenState extends State<DirectChatScreen> {
 
   Future<void> _init() async {
     await _fetchProfile();
-    // Beim ersten Öffnen: alle bisherigen als gelesen markieren
-    await _markAsRead();
+    await _markAsRead();    // beim Öffnen alles als gelesen markieren
     await _fetchMessages();
 
     // Poll alle 5 s nach neuen Nachrichten
@@ -111,7 +109,6 @@ class _DirectChatScreenState extends State<DirectChatScreen> {
 
   Future<void> _fetchMessages() async {
     if (_myId == null) {
-      // Fallback auf Dummy
       setState(() {
         _messages = [];
         _isLoading = false;
@@ -142,7 +139,6 @@ class _DirectChatScreenState extends State<DirectChatScreen> {
         _scrollToBottom();
       }
     } catch (_) {
-      // Fallback auf Dummy
       setState(() {
         _messages = [];
         _isLoading = false;
@@ -236,8 +232,7 @@ class _DirectChatScreenState extends State<DirectChatScreen> {
                 return Align(
                   alignment:
                   isMe ? Alignment.centerRight : Alignment.centerLeft,
-                  child:
-                  ChatBubble(message: m, isMe: isMe),
+                  child: ChatBubble(message: m, isMe: isMe),
                 )
                     .animate()
                     .fadeIn(duration: 300.ms)
@@ -246,35 +241,39 @@ class _DirectChatScreenState extends State<DirectChatScreen> {
             ),
           ),
           const Divider(height: 1),
-          Padding(
-            padding:
-            const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-            child: TextField(
-              controller: _textCtrl,
-              textCapitalization: TextCapitalization.sentences,
-              decoration: InputDecoration(
-                hintText: 'Nachricht eingeben…',
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 14, vertical: 10),
-                suffixIcon: _isSending
-                    ? Padding(
-                  padding: const EdgeInsets.all(12.0),
-                  child: SizedBox(
-                    width: 20,
-                    height: 20,
-                    child: CircularProgressIndicator(
-                        strokeWidth: 2),
+          // SafeArea sorgt dafür, dass die Leiste oben/unten nicht überlappt
+          SafeArea(
+            top: false,
+            child: Padding(
+              padding:
+              const EdgeInsets.symmetric(horizontal: 20, vertical: 30),
+              child: TextField(
+                controller: _textCtrl,
+                textCapitalization: TextCapitalization.sentences,
+                decoration: InputDecoration(
+                  hintText: 'Nachricht eingeben…',
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(20),
                   ),
-                )
-                    : IconButton(
-                  icon: const Icon(Icons.send_rounded),
-                  onPressed: _sendMessage,
+                  contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 14, vertical: 10),
+                  suffixIcon: _isSending
+                      ? Padding(
+                    padding: const EdgeInsets.all(12.0),
+                    child: SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(
+                          strokeWidth: 2),
+                    ),
+                  )
+                      : IconButton(
+                    icon: const Icon(Icons.send_rounded),
+                    onPressed: _sendMessage,
+                  ),
                 ),
+                onSubmitted: (_) => _sendMessage(),
               ),
-              onSubmitted: (_) => _sendMessage(),
             ),
           ),
         ],
@@ -320,7 +319,7 @@ class ChatMessage {
 }
 
 /// -----------------------------------------------------------------------------
-/// Bubble-Widget mit Read/Unread-Icon
+/// Bubble-Widget mit Drop Shadow & Read/Unread-Kreis
 /// -----------------------------------------------------------------------------
 class ChatBubble extends StatelessWidget {
   final ChatMessage message;
@@ -339,13 +338,15 @@ class ChatBubble extends StatelessWidget {
         : Theme.of(context).colorScheme.onSurfaceVariant;
 
     return Stack(
+      clipBehavior: Clip.none, // erlaubt Überlappen nach außen
       children: [
         Container(
           margin: const EdgeInsets.symmetric(vertical: 4),
-          padding:
-          const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+          // extra Platz rechts für das Icon
+          padding: const EdgeInsets.fromLTRB(14, 10, 30, 10),
           constraints: BoxConstraints(
-              maxWidth: MediaQuery.of(context).size.width * 0.7),
+            maxWidth: MediaQuery.of(context).size.width * 0.7,
+          ),
           decoration: BoxDecoration(
             color: bg,
             borderRadius: BorderRadius.only(
@@ -354,17 +355,39 @@ class ChatBubble extends StatelessWidget {
               bottomLeft: Radius.circular(isMe ? 16 : 0),
               bottomRight: Radius.circular(isMe ? 0 : 16),
             ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black26,
+                blurRadius: 4,
+                offset: Offset(0, 2),
+              ),
+            ],
           ),
-          child: Text(message.text,
-              style: GoogleFonts.lato(color: fg)),
+          child: Text(
+            message.text,
+            style: GoogleFonts.lato(color: fg),
+          ),
         ),
+
         if (isMe)
           Positioned(
-            bottom: 2,
-            right: 6,
-            child: Icon(
-              message.read ? Icons.done_all_rounded : Icons.done_rounded,
-              size: 16,
+            // negative Werte, damit das Icon wirklich in der Ecke „herausschaut“
+            bottom: -4,
+            right: -4,
+            child: Container(
+              width: 20,
+              height: 20,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: message.read ? Colors.green : Colors.grey,
+              ),
+              child: Icon(
+                message.read
+                    ? Icons.done_all_rounded
+                    : Icons.done_rounded,
+                size: 12,
+                color: Colors.white,
+              ),
             ),
           ),
       ],

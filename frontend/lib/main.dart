@@ -114,7 +114,7 @@ class MyApp extends StatelessWidget {
         bodyLarge: GoogleFonts.lato(color: medicalColorScheme.onSurface),
         bodyMedium: GoogleFonts.lato(color: medicalColorScheme.onSurface),
         titleMedium: GoogleFonts.lato(color: medicalColorScheme.onSurface),
-        titleSmall: GoogleFonts.lato(color: medicalColorScheme.onSurfaceVariant),
+        titleSmall: GoogleFonts.lato(color: medicalColorScheme.onSurface),
       ),
       inputDecorationTheme: InputDecorationTheme(
         border: OutlineInputBorder(
