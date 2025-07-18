@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:medapp/screens/15_DataManagementInformationScreen.dart';
 
 import '../07_SosScreen.dart';
 import '../08_MedicalDocumentScreen.dart';
@@ -70,11 +71,11 @@ class Sidebar extends StatelessWidget {
           ),
           ListTile(
             leading: const Icon(Icons.group),
-            title: Text('Community Management', style: GoogleFonts.lato()),
+            title: Text('Data Management Information', style: GoogleFonts.lato()),
             onTap: () {
               Navigator.of(context).push(
                 MaterialPageRoute(
-                    builder: (_) => const CommunitySelectionScreen()),
+                    builder: (_) => const DataManagementInformationScreen()),
               );
             },
           ),

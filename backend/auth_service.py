@@ -1,53 +1,48 @@
-# Loads environment variables from a .env file (e.g., for secrets like JWT keys) and pydantic Field
+# Loads environment variables from a .env file
 from dotenv import load_dotenv
 
-# FastAPI imports for building the web API
-from fastapi import FastAPI, HTTPException, status
+# FastAPI imports
+from fastapi import FastAPI, HTTPException, status, Depends, APIRouter
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import OAuth2PasswordBearer
 
-# Pydantic is used to validate and parse incoming JSON data
+# Pydantic for request/response models
 from pydantic import BaseModel, EmailStr
 
-# Database connection (MongoDB collection)
+# MongoDB collection
 from backend.db import patients_collection
 
 # Import the patient-related routes (GET endpoints)
 from backend import patient
 
-# Authentication helper functions and password handling logic
+# Auth helpers
 from backend.auth_utils import (
     verify_password,
     create_access_token,
     pwd_context,
+    get_user_from_token  # now available!
 )
 
-# Load environment variables (used in auth_utils.py for secrets, DB URLs, etc.)
+# Encryption helpers
+from backend.crypto_utils import encrypt_field, decrypt_field
+from backend.patient import router
+
+# Load env
 load_dotenv()
 
-# Initialize the FastAPI application
-app = FastAPI(title="Med-App Login Service")
+# FastAPI app
+router = APIRouter()
 
-# Allow requests from all origins (useful for frontend–backend communication)
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],          # Allow all origins (e.g. Flutter app)
-    allow_credentials=True,       # Allow cookies/auth headers
-    allow_methods=["*"],          # Allow all HTTP methods (GET, POST, etc.)
-    allow_headers=["*"],          # Allow all custom headers
-)
 
-# OAuth2 token extraction: expects the client to send a Bearer token in the header
+# OAuth2 scheme
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/login")
 
-# ---------- Data Schemas (Models) ----------
+# ---------- Models ----------
 
-# Login input schema: required email + password
 class LoginRequest(BaseModel):
     email: str
     password: str
 
-# Registration input schema: all data needed to create a new patient account
 class RegisterRequest(BaseModel):
     email: EmailStr
     password: str
@@ -56,77 +51,75 @@ class RegisterRequest(BaseModel):
     lastname: str
     med_id: str
 
-
-# Response schema after login or registration: contains the JWT
 class TokenResponse(BaseModel):
     access_token: str
-    token_type: str = "bearer"  # Standard type for OAuth2
+    token_type: str = "bearer"
 
-# Profile schema for patients (returned in profile GET requests)
 class PatientProfile(BaseModel):
     firstname: str
     lastname: str
     med_id: str
 
+# ---------- Routes ----------
 
-# ---------- Auth Routes ----------
-
-# Login endpoint: verifies user credentials and returns a JWT token
-@app.post("/login", response_model=TokenResponse)
+@router.post("/login", response_model=TokenResponse)
 def login(data: LoginRequest):
-    # Try to find a user by email (case-insensitive, trimmed)
     user = patients_collection.find_one({"email": data.email.lower().strip()})
-
-    # If user doesn't exist, return 401 Unauthorized
     if not user:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User does not exist")
 
-    # Check if the password is correct using bcrypt
     if not verify_password(data.password, user["password"]):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Wrong password")
 
-    # Create a JWT token containing the user's ID
     token = create_access_token(str(user["_id"]))
-
-    # Return the token in the response
     return {"access_token": token, "token_type": "bearer"}
 
 
-# Registration endpoint: creates a new user if validation passes
-@app.post("/register", response_model=TokenResponse)
+@router.post("/register", response_model=TokenResponse)
 def register(data: RegisterRequest):
     email = data.email.lower().strip()
 
-    # Check if both passwords match
     if data.password != data.password_confirm:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Passwords do not match")
 
-    # Check if the email is already in use
     if patients_collection.find_one({"email": email}):
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="E-Mail already registered")
 
-    # Hash the password for secure storage
     hashed_pw = pwd_context.hash(data.password)
 
-    # Insert new user data into the database
+    enc_firstname = encrypt_field(data.firstname.strip())
+    enc_lastname  = encrypt_field(data.lastname.strip())
+    enc_med_id    = encrypt_field(data.med_id.strip())
+
     result = patients_collection.insert_one({
         "email": email,
         "password": hashed_pw,
-        "firstname": data.firstname.strip(),
-        "lastname": data.lastname.strip(),
-        "med_id": data.med_id.strip(),
+        "firstname": enc_firstname,
+        "lastname": enc_lastname,
+        "med_id": enc_med_id,
     })
 
-    # Generate JWT token for the newly created user
     token = create_access_token(str(result.inserted_id))
     return {"access_token": token, "token_type": "bearer"}
 
 
-# Health check endpoint: use this to see if the backend is alive
-@app.get("/ping")
+@router.get("/profile", response_model=PatientProfile)
+def get_profile(token: str = Depends(oauth2_scheme)):
+    user_id = get_user_from_token(token)
+    user = patients_collection.find_one({"_id": user_id})
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    return PatientProfile(
+        firstname=decrypt_field(user["firstname"]),
+        lastname=decrypt_field(user["lastname"]),
+        med_id=decrypt_field(user["med_id"])
+    )
+
+
+@router.get("/ping")
 def ping():
     return {"msg": "pong"}
 
-
-# Include the GET routes from the patient module (e.g., /patient/me, /patient/all)
-app.include_router(patient.router)
+# Include other patient routes
+router.include_router(patient.router)
