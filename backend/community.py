@@ -22,6 +22,7 @@ class CommunityCreate(BaseModel):
 class CommunitySummary(BaseModel):
     name: str
     description: str
+    avg_messages: int
 
 class CommunitiesUpdate(BaseModel):
     communities: List[str]
@@ -41,7 +42,7 @@ def list_all_communities():
     """
     docs = community_collection.find({})
     return [
-        CommunitySummary(name=doc["title"], description=doc["description"])
+        CommunitySummary(name=doc["title"], description=doc["description"], avg_messages=doc.get("avg_messages", 0))
         for doc in docs
     ]
 

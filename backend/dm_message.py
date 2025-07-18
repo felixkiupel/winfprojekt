@@ -2,12 +2,11 @@ from fastapi import APIRouter, Depends, HTTPException, status, Response
 from pydantic import BaseModel, Field
 from typing import List
 from datetime import datetime
-from bson import ObjectId
 
-from backend.db import dm_collection
+from backend.db import dm_collection, patients_collection
 from backend.auth_utils import get_current_patient
+from backend.patient import PatientProfile
 
-# Router für Direct Messages
 router = APIRouter(
     prefix="/dm",
     tags=["direct-message"],
@@ -26,6 +25,12 @@ class ChatMessageOut(BaseModel):
     text: str
     read: bool
 
+# Neues Modell für Partner mit Ungelesen-Count
+class PartnerWithUnread(PatientProfile):
+    unreadCount: int = Field(
+        ..., description="Anzahl der ungelesenen Nachrichten von diesem Partner"
+    )
+
 @router.get("/{partner_id}/messages", response_model=List[ChatMessageOut])
 def get_dm_messages(
         partner_id: str,
@@ -36,25 +41,31 @@ def get_dm_messages(
     sortiert nach Datum aufsteigend, inklusive Read/Unread-Status.
     """
     my_id = current_user.get("med_id") or str(current_user.get("_id"))
-    cursor = dm_collection.find({
-        "$or": [
-            {"senderId": my_id, "receiverId": partner_id},
-            {"senderId": partner_id, "receiverId": my_id},
-        ]
-    }).sort("date", 1)
+    cursor = dm_collection.find(
+        {
+            "$or": [
+                {"senderId": my_id, "receiverId": partner_id},
+                {"senderId": partner_id, "receiverId": my_id},
+            ]
+        }
+    ).sort("date", 1)
 
     out = []
     for doc in cursor:
         out.append({
-            "_id": str(doc.get("_id")),
+            "_id": str(doc["_id"]),
             "date": doc["date"],
-            "senderId": doc.get("senderId"),
-            "text": doc.get("text"),
+            "senderId": doc["senderId"],
+            "text": doc["text"],
             "read": doc.get("read", False),
         })
     return out
 
-@router.post("/{partner_id}/messages", status_code=status.HTTP_201_CREATED, response_model=ChatMessageOut)
+@router.post(
+    "/{partner_id}/messages",
+    status_code=status.HTTP_201_CREATED,
+    response_model=ChatMessageOut
+)
 def send_dm_message(
         partner_id: str,
         msg: ChatMessageIn,
@@ -94,3 +105,54 @@ def mark_dm_read(
         {"$set": {"read": True}}
     )
     return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+@router.get("/partners", response_model=List[PartnerWithUnread])
+def get_chat_partners(current_user: dict = Depends(get_current_patient)):
+    """
+    Liefert alle bisherigen Chat-Partner des eingeloggten Users zurück
+    (jeweils nur einmal), inkl. firstname, lastname, med_id, role und Anzahl ungelesener Nachrichten.
+    """
+    my_id = current_user.get("med_id") or str(current_user.get("_id"))
+
+    # 1) Alle DM-Dokumente, in denen der User Sender oder Empfänger ist
+    cursor = dm_collection.find({
+        "$or": [
+            {"senderId": my_id},
+            {"receiverId": my_id},
+        ]
+    })
+
+    # 2) Einzigartige Partner-IDs sammeln
+    partner_ids = set()
+    for doc in cursor:
+        if doc["senderId"] != my_id:
+            partner_ids.add(doc["senderId"])
+        if doc["receiverId"] != my_id:
+            partner_ids.add(doc["receiverId"])
+
+    if not partner_ids:
+        return []
+
+    # 3) Profildaten der Partner aus patients_collection laden
+    users = list(patients_collection.find({"med_id": {"$in": list(partner_ids)}}))
+
+    partners_with_unread: List[PartnerWithUnread] = []
+    for u in users:
+        pid = u["med_id"]
+        # 4) Ungelesene Nachrichten von diesem Partner zählen
+        unread = dm_collection.count_documents({
+            "senderId": pid,
+            "receiverId": my_id,
+            "read": False
+        })
+        partners_with_unread.append(
+            PartnerWithUnread(
+                firstname=u["firstname"],
+                lastname=u["lastname"],
+                med_id=pid,
+                role=u.get("role", "patient"),
+                unreadCount=unread,
+            )
+        )
+
+    return partners_with_unread
