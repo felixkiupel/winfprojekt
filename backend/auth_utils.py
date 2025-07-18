@@ -37,85 +37,64 @@ ACCESS_TOKEN_EXPIRE_MIN = 60 * 24
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/login")
 
 
-# ---------- Helper Functions ----------
+# ---------- Password Hashing ----------
 
 def verify_password(plain_pw: str, hashed_pw: str) -> bool:
-    """
-    Compares a plain-text password with a bcrypt-hashed version stored in the database.
-
-    Returns:
-        True if the password matches, otherwise False.
-
-    Example:
-        User types "mypassword123" — compare it against the stored bcrypt hash.
-    """
+    """Compare plain text vs hashed password."""
     try:
         return pwd_context.verify(plain_pw, hashed_pw)
     except Exception:
-        # If something goes wrong (e.g., invalid hash), we safely return False
         return False
 
 
+def hash_password(password: str) -> str:
+    """Hash a password with bcrypt."""
+    return pwd_context.hash(password)
+
+
+# ---------- JWT Creation ----------
+
 def create_access_token(sub: str) -> str:
     """
-    Generates a JWT access token that includes:
-    - 'sub': the user ID (subject of the token)
-    - 'exp': the expiration timestamp
-
-    This token is returned to the frontend after login or registration.
-    It's digitally signed using our secret key and can't be tampered with.
-
-    Args:
-        sub (str): User ID to embed in the token.
-
-    Returns:
-        A JWT access token as a string.
+    Creates a JWT token with:
+    - 'sub' as the user_id
+    - 'exp' expiration timestamp
     """
     expire = datetime.utcnow() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MIN)
     payload = {"sub": sub, "exp": expire}
-
     return jwt.encode(payload, SECRET_KEY, algorithm=ALGORITHM)
 
 
-def get_current_patient(token: str = Depends(oauth2_scheme)) -> dict:
+# ---------- JWT Decoding ----------
+
+def get_user_from_token(token: str) -> ObjectId:
     """
-    Dependency for protected endpoints. Extracts the current user from a JWT token.
-
-    Steps:
-    1. Reads the "Authorization: Bearer <token>" header
-    2. Decodes and verifies the token using the secret key
-    3. Loads the user from the MongoDB collection based on the user ID
-
-    Raises:
-        - HTTP 401 if the token is invalid or expired
-        - HTTP 404 if the user doesn't exist
-
-    Returns:
-        A dictionary representing the current user from the database.
+    Decodes a JWT and returns the MongoDB ObjectId for the user.
     """
     try:
-        # Decode the token using the secret key and algorithm
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         user_id = payload.get("sub")
-
-        if user_id is None:
+        if not user_id:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Invalid token payload"
             )
-    except jwt.PyJWTError:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid token"
-        )
+        return ObjectId(user_id)
 
-    # Fetch the user from the database using the extracted ID
-    patient = patients_collection.find_one({"_id": ObjectId(user_id)})
+    except jwt.ExpiredSignatureError:
+        raise HTTPException(status_code=401, detail="Token expired")
+    except jwt.InvalidTokenError:
+        raise HTTPException(status_code=401, detail="Invalid token")
 
+
+def get_current_patient(token: str = Depends(oauth2_scheme)) -> dict:
+    """
+    Dependency for protected routes:
+    - Decodes JWT
+    - Fetches user directly from DB
+    """
+    user_id = get_user_from_token(token)
+    patient = patients_collection.find_one({"_id": user_id})
     if not patient:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="User not found"
-        )
-
+        raise HTTPException(status_code=404, detail="User not found")
     return patient
