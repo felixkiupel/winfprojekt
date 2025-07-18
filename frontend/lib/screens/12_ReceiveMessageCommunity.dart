@@ -197,15 +197,36 @@ class _CommunityFeedScreenState extends State<CommunityFeedScreen> {
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                   child: ListTile(
                     leading: Icon(_isRead(m.id) ? Icons.mark_email_read : Icons.mark_email_unread,
-                        color: Theme.of(context).colorScheme.primary),
+                        color: Theme.of(context).colorScheme.onSurface),
                     title: Text(m.title, style: GoogleFonts.lato(fontWeight: FontWeight.w600)),
                     subtitle: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         const SizedBox(height: 4),
-                        Text(m.message, maxLines: 2, overflow: TextOverflow.ellipsis, style: GoogleFonts.lato()),
+                        Text(
+                          m.message,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: GoogleFonts.lato(),
+                        ),
                         const SizedBox(height: 8),
-                        Text('Community: ${m.community}', style: GoogleFonts.lato(fontSize: 12, color: Colors.grey)),
+                        Row(
+                          children: [
+                            const Icon(
+                              Icons.groups,
+                              size: 14,
+                              color: Colors.green,
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              m.community,
+                              style: GoogleFonts.lato(
+                                fontSize: 12,
+                                color: Colors.green,
+                              ),
+                            ),
+                          ],
+                        ),
                       ],
                     ),
                     onTap: () => _onMessageTap(m),

@@ -157,7 +157,7 @@ class _CommunityPostScreenState extends State<CommunityPostScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('New Message', style: GoogleFonts.lato(fontWeight: FontWeight.w700)),
+        title: Text('New Community Message', style: GoogleFonts.lato(fontWeight: FontWeight.w700)),
         centerTitle: true,
         actions: [
           TextButton(
@@ -202,7 +202,7 @@ class _CommunityPostScreenState extends State<CommunityPostScreen> {
                   const SizedBox(height: 16),
                   DropdownButtonFormField<Community>(
                     value: _selectedCommunity,
-                    hint: Text('Community auswählen', style: GoogleFonts.lato()),
+                    hint: Text('Select Community', style: GoogleFonts.lato()),
                     decoration: InputDecoration(
                       labelText: 'Community',
                       border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
