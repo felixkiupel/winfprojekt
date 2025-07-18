@@ -29,19 +29,13 @@ class _CommunitySelectionScreenState extends State<CommunitySelectionScreen> {
   final _storage = const FlutterSecureStorage();
   String? _userName;
   List<String> _userCommunities = [];
-  List<Map<String, String>> _allCommunities = [];
+  List<Map<String, dynamic>> _allCommunities = [];
+
 
   /// Mehrfachauswahl per Häkchen
   Set<String> _selectedCommunities = {};
   bool _isLoading = true;
   bool _isSaving = false;
-
-  // Fallback-Daten (communitys_fallback.json)
-  static const List<Map<String, String>> _fallbackCommunities = [
-    {"name": "Flutter Enthusiasts", "description": "A community for Flutter devs to exchange tips and best practices."},
-    {"name": "Open Source Contributors", "description": "Join forces on open-source Projekte und teile deinen Code."},
-    {"name": "Tech Talk", "description": "Diskutiere die neuesten Trends aus IT und Innovation."},
-  ];
 
   // Basis-URL: via --dart-define API_URL, sonst Emulator/Simulator
   late final String _baseUrl = (() {
@@ -101,28 +95,19 @@ class _CommunitySelectionScreenState extends State<CommunitySelectionScreen> {
           .timeout(const Duration(seconds: 10));
       if (allRes.statusCode == 200) {
         final list = json.decode(allRes.body) as List<dynamic>;
-        _allCommunities = list
-            .map((e) => {
+        _allCommunities = list.map((e) => {
           'name': e['name'] as String,
           'description': e['description'] as String,
-        })
-            .toList();
+          'avg': e['avg_messages'] as int,     // hier
+        }).toList();
       }
 
-      // Fallback, falls API keine Daten liefert
-      if (_allCommunities.isEmpty) {
-        _allCommunities = List.from(_fallbackCommunities);
-      }
-    } catch (e) {
-      // Fehler: nutze Fallback-Daten
-      _allCommunities = List.from(_fallbackCommunities);
     } finally {
       setState(() => _isLoading = false);
     }
   }
 
   Future<void> _saveCommunities() async {
-    if (_selectedCommunities.isEmpty) return;
     setState(() => _isSaving = true);
 
     try {
@@ -131,20 +116,30 @@ class _CommunitySelectionScreenState extends State<CommunitySelectionScreen> {
 
       final res = await http.put(
         Uri.parse('$_baseUrl/communitys/me'),
-        headers: {'Authorization': 'Bearer $token', 'Content-Type': 'application/json'},
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json'
+        },
         body: jsonEncode({'communities': _selectedCommunities.toList()}),
       ).timeout(const Duration(seconds: 10));
 
       if (res.statusCode == 200 || res.statusCode == 204) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Communities erfolgreich gesetzt')),);
+            SnackBar(
+                content: Text(
+                    _selectedCommunities.isEmpty
+                        ? 'Deleted all Communities'
+                        : 'Saved Communities successful'
+                )
+            )
+        );
         await _fetchCommunities();
       } else {
-        throw Exception('Speichern fehlgeschlagen (\${res.statusCode})');
+        throw Exception('Speichern fehlgeschlagen (${res.statusCode})');
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Fehler: \$e')));
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text('Fehler: $e')));
     } finally {
       setState(() => _isSaving = false);
     }
@@ -209,7 +204,7 @@ class _CommunitySelectionScreenState extends State<CommunitySelectionScreen> {
                   children: [
                     Text(_userName ?? '', style: GoogleFonts.lato(fontSize: 18, fontWeight: FontWeight.w700, color: Theme.of(context).colorScheme.onSurface)),
                     const SizedBox(height: 4),
-                    Text("Deine Communities: ${_userCommunities.join(', ')}",
+                    Text("Available Communities: ",
                       style: GoogleFonts.lato(fontSize: 14, color: Theme.of(context).colorScheme.onSurfaceVariant),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
@@ -234,7 +229,17 @@ class _CommunitySelectionScreenState extends State<CommunitySelectionScreen> {
                 activeColor: Colors.black,
                 checkColor: kMedicalSecondaryContainer,
                 title: Text(name, style: GoogleFonts.lato(fontWeight: FontWeight.w600)),
-                subtitle: Text(desc, style: GoogleFonts.lato()),
+                subtitle: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(desc, style: GoogleFonts.lato()),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Ø Messages: ${c['avg']}',
+                      style: GoogleFonts.lato(fontSize: 12, color: Colors.grey),
+                    ),
+                  ],
+                ),
                 controlAffinity: ListTileControlAffinity.leading,
                 onChanged: (bool? val) {
                   setState(() {
@@ -242,7 +247,9 @@ class _CommunitySelectionScreenState extends State<CommunitySelectionScreen> {
                     else _selectedCommunities.remove(name);
                   });
                 },
-              ).animate().fadeIn(duration: 300.ms);
+
+              );
+
             }).toList()),
           )),
 

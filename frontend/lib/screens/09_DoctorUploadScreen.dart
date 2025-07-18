@@ -278,14 +278,14 @@ class _DoctorUploadScreenState extends State<DoctorUploadScreen> {
                     ),
                   ),
                   Positioned(
-                    top: 150,
+                    top: 50,
                     left: 0,
                     right: 0,
                     child: Center(
                       child: Icon(
                         Icons.cloud_upload,
-                        size: 80,
-                        color: Colors.grey,
+                        size: 120,
+                        color: Colors.black87,
                       ),
                     ),
                   ),
