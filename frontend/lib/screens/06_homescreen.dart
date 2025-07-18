@@ -97,7 +97,7 @@ class _HomeScreenTemplateState extends State<HomeScreenTemplate> {
               leading: const Icon(Icons.settings),
               title: Text('Settings', style: GoogleFonts.lato()),
               onTap: () {
-                // Navigator.push(...)
+                Navigator.pushNamed(context, '/settings');
               },
             ),
             ListTile(
