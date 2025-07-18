@@ -75,7 +75,7 @@ class _PatientDocumentsScreenState extends State<PatientDocumentsScreen> {
   Future<void> _fetchPatientProfile() async {
     try {
       final token = await _storage.read(key: 'jwt');
-      if (token == null) throw Exception('Kein Token gefunden');
+      if (token == null) throw Exception('No token found');
 
       final res = await http
           .get(
@@ -99,7 +99,7 @@ class _PatientDocumentsScreenState extends State<PatientDocumentsScreen> {
           _isLoadingProfile = false;
         });
       } else {
-        throw Exception('Profil-Laden fehlgeschlagen (${res.statusCode})');
+        throw Exception('Failed to load profile (${res.statusCode})');
       }
     } catch (_) {
       setState(() {

@@ -55,7 +55,7 @@ class _CommunitySelectionScreenState extends State<CommunitySelectionScreen> {
     setState(() => _isLoading = true);
     try {
       final token = await _storage.read(key: 'jwt');
-      if (token == null) throw Exception('Kein Token gefunden');
+      if (token == null) throw Exception('No token found');
 
       // 1) User-Profil für Namen laden
       final profileRes = await http
@@ -112,7 +112,7 @@ class _CommunitySelectionScreenState extends State<CommunitySelectionScreen> {
 
     try {
       final token = await _storage.read(key: 'jwt');
-      if (token == null) throw Exception('Kein Token gefunden');
+      if (token == null) throw Exception('No token found');
 
       final res = await http.put(
         Uri.parse('$_baseUrl/communitys/me'),
@@ -135,7 +135,7 @@ class _CommunitySelectionScreenState extends State<CommunitySelectionScreen> {
         );
         await _fetchCommunities();
       } else {
-        throw Exception('Speichern fehlgeschlagen (${res.statusCode})');
+        throw Exception('Failed to save (${res.statusCode})');
       }
     } catch (e) {
       ScaffoldMessenger.of(context)
@@ -149,7 +149,7 @@ class _CommunitySelectionScreenState extends State<CommunitySelectionScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('Community Auswahl', style: GoogleFonts.lato(fontWeight: FontWeight.w700)),
+        title: Text('Community Browser', style: GoogleFonts.lato(fontWeight: FontWeight.w700)),
         centerTitle: true,
       ),
       body: _isLoading

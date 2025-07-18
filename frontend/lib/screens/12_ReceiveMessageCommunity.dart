@@ -78,7 +78,7 @@ class _CommunityFeedScreenState extends State<CommunityFeedScreen> {
   Future<void> _fetchProfileAndCommunities() async {
     try {
       final token = await _secureStorage.read(key: 'jwt');
-      if (token == null) throw Exception('Kein Token');
+      if (token == null) throw Exception('No token');
 
       // Profil
       final profRes = await http.get(
@@ -107,7 +107,7 @@ class _CommunityFeedScreenState extends State<CommunityFeedScreen> {
     setState(() => _isRefreshing = true);
     try {
       final token = await _secureStorage.read(key: 'jwt');
-      if (token == null) throw Exception('Kein Token');
+      if (token == null) throw Exception('No Token');
 
       final uri = Uri.parse(
         '$_baseUrl/messages?communities=${_userCommunities.join(',')}',
@@ -150,7 +150,7 @@ class _CommunityFeedScreenState extends State<CommunityFeedScreen> {
           ],
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text('Schließen'))
+          TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text('Close'))
         ],
       ),
     );
@@ -168,13 +168,13 @@ class _CommunityFeedScreenState extends State<CommunityFeedScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text('Community Nachrichten', style: GoogleFonts.lato(fontWeight: FontWeight.w700)),
+        title: Text('Community Notifications', style: GoogleFonts.lato(fontWeight: FontWeight.w700)),
         centerTitle: true,
       ),
       body: RefreshIndicator(
         onRefresh: _fetchMessages,
         child: _messages.isEmpty
-            ? ListView(children: const [SizedBox(height: 300), Center(child: Text('Keine Nachrichten'))])
+            ? ListView(children: const [SizedBox(height: 300), Center(child: Text('No Notifications'))])
             : ListView.builder(
           padding: const EdgeInsets.all(16),
           itemCount: _messages.length,
