@@ -56,7 +56,7 @@ class _LogScreenState extends State<LogScreen> {
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : _logs.isEmpty
-          ? Center(child: Text('Keine Einträge gefunden.', style: GoogleFonts.lato()))
+          ? Center(child: Text('No entry found.', style: GoogleFonts.lato()))
           : ListView.builder(
         itemCount: _logs.length,
         itemBuilder: (ctx, i) {

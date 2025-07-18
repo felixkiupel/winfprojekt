@@ -51,7 +51,7 @@ class _ChatPartnerSelectionScreenState
     setState(() => _isLoading = true);
     try {
       final token = await _secureStorage.read(key: 'jwt');
-      if (token == null) throw Exception('Kein Token gefunden');
+      if (token == null) throw Exception('No Token found');
 
       // 1) Profil abrufen, um Rolle zu kennen
       final profileRes = await http
@@ -59,7 +59,7 @@ class _ChatPartnerSelectionScreenState
           headers: {'Authorization': 'Bearer $token'})
           .timeout(const Duration(seconds: 10));
       if (profileRes.statusCode != 200) {
-        throw Exception('Profil konnte nicht geladen werden');
+        throw Exception('Failed to load profile');
       }
       final profile = json.decode(profileRes.body) as Map<String, dynamic>;
       _currentRole = profile['role'] as String?;
@@ -114,7 +114,7 @@ class _ChatPartnerSelectionScreenState
         }
       }
     } catch (e) {
-      debugPrint('Fehler beim Laden der Partner: $e');
+      debugPrint('Failed to load associates: $e');
     } finally {
       // --------------------------------------------------------
       // FIX 1 (Fortsetzung): State-Update inklusive _isLoading
@@ -140,7 +140,7 @@ class _ChatPartnerSelectionScreenState
         children: [
           if (_recentPartners.isNotEmpty) ...[
             Text(
-              'Letzte Chats',
+              'Last Chats',
               style: Theme.of(context).textTheme.titleLarge,
             ),
             const SizedBox(height: 8),
@@ -186,19 +186,19 @@ class _ChatPartnerSelectionScreenState
           ],
 
           Text(
-            'Neuen Chat starten',
+            'Start new chat',
             style: Theme.of(context).textTheme.titleLarge,
           ),
           const SizedBox(height: 8),
 
           DropdownButtonFormField<String>(
             decoration: InputDecoration(
-              labelText: 'Partner wählen',
+              labelText: 'Select partner',
               border: OutlineInputBorder(),
               contentPadding: const EdgeInsets.symmetric(
                   horizontal: 12, vertical: 8),
             ),
-            hint: Text('Partner wählen', style: GoogleFonts.lato()),
+            hint: Text('Select partner', style: GoogleFonts.lato()),
             value: _selectedPartnerId,
             items: _partners.map((partner) {
               final initials = partner['name']!
@@ -229,7 +229,7 @@ class _ChatPartnerSelectionScreenState
 
           ElevatedButton.icon(
             icon: const Icon(Icons.chat),
-            label: Text('Chat starten', style: GoogleFonts.lato()),
+            label: Text('Start chat', style: GoogleFonts.lato()),
             onPressed: _selectedPartnerId == null
                 ? null
                 : () {

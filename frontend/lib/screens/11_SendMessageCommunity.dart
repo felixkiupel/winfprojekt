@@ -79,13 +79,13 @@ class _CommunityPostScreenState extends State<CommunityPostScreen> {
         });
       } else {
         setState(() {
-          _error = 'Fehler beim Laden der Communities (${resp.statusCode})';
+          _error = 'An Error occurred while attempting to load the Communities (${resp.statusCode})';
           _isLoading = false;
         });
       }
     } catch (e) {
       setState(() {
-        _error = 'Netzwerkfehler: $e';
+        _error = 'Networkerror: $e';
         _isLoading = false;
       });
     }
@@ -107,7 +107,7 @@ class _CommunityPostScreenState extends State<CommunityPostScreen> {
         android: AndroidNotificationDetails(
           'send_channel',
           'Send Notifications',
-          channelDescription: 'Benachrichtigung nach Senden',
+          channelDescription: 'Notification after sending',
           importance: Importance.max,
           priority: Priority.high,
         ),
@@ -130,7 +130,7 @@ class _CommunityPostScreenState extends State<CommunityPostScreen> {
       body: payload,
     );
     if (resp.statusCode < 200 || resp.statusCode >= 300) {
-      debugPrint('Log-Request fehlgeschlagen: ${resp.statusCode}');
+      debugPrint('Log-Request failed: ${resp.statusCode}');
     }
   }
 
@@ -157,7 +157,7 @@ class _CommunityPostScreenState extends State<CommunityPostScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('Neue Nachricht', style: GoogleFonts.lato(fontWeight: FontWeight.w700)),
+        title: Text('New Message', style: GoogleFonts.lato(fontWeight: FontWeight.w700)),
         centerTitle: true,
         actions: [
           TextButton(
@@ -187,7 +187,7 @@ class _CommunityPostScreenState extends State<CommunityPostScreen> {
                       labelText: 'Titel',
                       border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
                     ),
-                    validator: (v) => (v == null || v.isEmpty) ? 'Bitte Titel eingeben' : null,
+                    validator: (v) => (v == null || v.isEmpty) ? 'Please enter title' : null,
                   ),
                   const SizedBox(height: 16),
                   TextFormField(
@@ -197,7 +197,7 @@ class _CommunityPostScreenState extends State<CommunityPostScreen> {
                       border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
                     ),
                     maxLines: 5,
-                    validator: (v) => (v == null || v.isEmpty) ? 'Bitte Text eingeben' : null,
+                    validator: (v) => (v == null || v.isEmpty) ? 'Please enter text' : null,
                   ),
                   const SizedBox(height: 16),
                   DropdownButtonFormField<Community>(
@@ -235,7 +235,7 @@ class _CommunityPostScreenState extends State<CommunityPostScreen> {
                     )
                         .toList(),
                     onChanged: (c) => setState(() => _selectedCommunity = c),
-                    validator: (v) => v == null ? 'Bitte eine Community wählen' : null,
+                    validator: (v) => v == null ? 'Please pick a Community' : null,
                   ),
                   const SizedBox(height: 24),
                   SizedBox(
@@ -248,7 +248,7 @@ class _CommunityPostScreenState extends State<CommunityPostScreen> {
                       ),
                       child: _isSending
                           ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                          : Text('Senden', style: GoogleFonts.lato(fontSize: 16)),
+                          : Text('Send', style: GoogleFonts.lato(fontSize: 16)),
                     ),
                   ),
                 ],
