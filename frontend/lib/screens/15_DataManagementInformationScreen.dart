@@ -24,13 +24,13 @@ class DataManagementInformationScreen extends StatelessWidget {
           children: [
             // ── Große Hauptüberschrift ──
             Text(
-              "PERSONAL DATA MANAGEMENT\nAND SECURITY INFORMATION",
+              "PERSONAL DATA MANAGEMENT AND SECURITY INFORMATION",
               textAlign: TextAlign.center,
               style: GoogleFonts.lato(
-                fontSize: 30, // groß
+                fontSize: 20, // groß
                 fontWeight: FontWeight.w900,
                 height: 1.3,
-                color: theme.colorScheme.primary,
+                color: Colors.black,
               ),
             )
                 .animate()
@@ -141,7 +141,7 @@ class DataManagementInformationScreen extends StatelessWidget {
             style: GoogleFonts.lato(
               fontSize: 18,
               fontWeight: FontWeight.bold,
-              color: theme.colorScheme.primary,
+              color: Colors.black,
             ),
           ),
           const SizedBox(height: 6),
