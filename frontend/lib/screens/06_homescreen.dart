@@ -6,6 +6,7 @@ import 'package:medapp/screens/11_SendMessageCommunity.dart';
 import 'package:medapp/screens/12_ReceiveMessageCommunity.dart';
 import 'package:medapp/screens/13_ChatPartnerSelection.dart';
 import 'package:medapp/screens/14_DirectChatScreen.dart';
+import 'package:medapp/screens/15_DataManagementInformationScreen.dart';
 import '02b_login.dart';
 import '09_DoctorUploadScreen.dart';
 import '07_SosScreen.dart';
@@ -133,6 +134,15 @@ class _HomeScreenTemplateState extends State<HomeScreenTemplate> {
               onTap: () {
                 Navigator.of(context).push(
                   MaterialPageRoute(builder: (_) => const CommunityPostScreen()),
+                );
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.privacy_tip_outlined),
+              title: Text('Data Management Information', style: GoogleFonts.lato()),
+              onTap: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => DataManagementInformationScreen()),
                 );
               },
             ),
