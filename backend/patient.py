@@ -7,6 +7,7 @@ from fastapi import APIRouter, Depends
 # Pydantic is used for data validation and response models
 from pydantic import BaseModel
 
+from backend.crypto_utils import decrypt_field
 # MongoDB users collection (holds all registered users)
 from backend.db import patients_collection
 
@@ -59,9 +60,9 @@ def read_patient_me(current_user: dict = Depends(get_current_patient)):
         - med_id
     """
     return PatientProfile(
-        firstname=current_user["firstname"],
-        lastname=current_user["lastname"],
-        med_id=current_user["med_id"],
+        firstname=decrypt_field(current_user["firstname"]),
+        lastname=decrypt_field(current_user["lastname"]),
+        med_id=decrypt_field(current_user["med_id"]),
     )
 
 
