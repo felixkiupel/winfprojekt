@@ -291,18 +291,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 Navigator.pop(context);
               },
             ),
-            RadioListTile<String>(
-              title: Text('Español', style: GoogleFonts.lato()),
-              value: 'Español',
-              groupValue: _selectedLanguage,
-              onChanged: (value) {
-                setState(() {
-                  _selectedLanguage = value!;
-                });
-                _saveSetting('language', value!);
-                Navigator.pop(context);
-              },
-            ),
           ],
         ),
       ),
