@@ -1,15 +1,21 @@
+import 'dart:async';
+import 'dart:convert';
+import 'dart:io' show Platform;
+
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-import 'package:medapp/screens/10_CommunityMenu.dart';
-import 'package:medapp/screens/11_SendMessageCommunity.dart';
-import 'package:medapp/screens/12_ReceiveMessageCommunity.dart';
-import 'package:medapp/screens/13_ChatPartnerSelection.dart';
-import 'package:medapp/screens/14_DirectChatScreen.dart';
+import 'package:http/http.dart' as http;
+
 import '02b_login.dart';
 import '09_DoctorUploadScreen.dart';
 import '07_SosScreen.dart';
 import '08_MedicalDocumentScreen.dart';
+import '10_CommunityMenu.dart';
+import '11_SendMessageCommunity.dart';
+import '12_ReceiveMessageCommunity.dart';
+import '13_ChatPartnerSelection.dart';
+import '14_DirectChatScreen.dart';
 
 class HomeScreenTemplate extends StatefulWidget {
   const HomeScreenTemplate({super.key});
@@ -19,16 +25,23 @@ class HomeScreenTemplate extends StatefulWidget {
 }
 
 class _HomeScreenTemplateState extends State<HomeScreenTemplate> {
-  // Secure storage for JWT
   final _storage = const FlutterSecureStorage();
+  int _totalUnread = 0;
+
+  late final String _baseUrl = (() {
+    const envUrl = String.fromEnvironment('API_URL');
+    if (envUrl.isNotEmpty) return envUrl;
+    final host = Platform.isAndroid ? '10.0.2.2' : '127.0.0.1';
+    return 'http://$host:8000';
+  })();
 
   @override
   void initState() {
     super.initState();
     _checkAuth();
+    _loadUnreadCount();
   }
 
-  // If there's no token, go back to login
   Future<void> _checkAuth() async {
     final token = await _storage.read(key: 'jwt');
     if (token == null) {
@@ -38,7 +51,33 @@ class _HomeScreenTemplateState extends State<HomeScreenTemplate> {
     }
   }
 
-  // Logout: delete token and navigate to login
+  Future<void> _loadUnreadCount() async {
+    try {
+      final token = await _storage.read(key: 'jwt');
+      if (token == null) return;
+
+      final res = await http.get(
+        Uri.parse('$_baseUrl/dm/partners'),
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Accept': 'application/json',
+        },
+      ).timeout(const Duration(seconds: 10));
+
+      if (res.statusCode == 200) {
+        final list = json.decode(res.body) as List<dynamic>;
+        int sum = 0;
+        for (var e in list) {
+          final m = e as Map<String, dynamic>;
+          sum += (m['unreadCount'] as int?) ?? 0;
+        }
+        setState(() => _totalUnread = sum);
+      }
+    } catch (e) {
+      debugPrint('Fehler beim Laden des Unread-Counts: $e');
+    }
+  }
+
   Future<void> _logout() async {
     await _storage.delete(key: 'jwt');
     if (!mounted) return;
@@ -51,6 +90,10 @@ class _HomeScreenTemplateState extends State<HomeScreenTemplate> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      // Sobald das Drawer geöffnet wird, neu laden
+      onDrawerChanged: (isOpen) {
+        if (isOpen) _loadUnreadCount();
+      },
       appBar: AppBar(
         title: Text(
           'Home',
@@ -102,7 +145,8 @@ class _HomeScreenTemplateState extends State<HomeScreenTemplate> {
             ),
             ListTile(
               leading: const Icon(Icons.cloud_upload_outlined),
-              title: Text('Doctor Document Upload', style: GoogleFonts.lato()),
+              title:
+              Text('Doctor Document Upload', style: GoogleFonts.lato()),
               onTap: () {
                 Navigator.of(context).push(
                   MaterialPageRoute(builder: (_) => const DoctorUploadScreen()),
@@ -114,7 +158,8 @@ class _HomeScreenTemplateState extends State<HomeScreenTemplate> {
               title: Text('Offline Documents', style: GoogleFonts.lato()),
               onTap: () {
                 Navigator.of(context).push(
-                  MaterialPageRoute(builder: (_) => const PatientDocumentsScreen()),
+                  MaterialPageRoute(
+                      builder: (_) => const PatientDocumentsScreen()),
                 );
               },
             ),
@@ -123,7 +168,8 @@ class _HomeScreenTemplateState extends State<HomeScreenTemplate> {
               title: Text('Communitys', style: GoogleFonts.lato()),
               onTap: () {
                 Navigator.of(context).push(
-                  MaterialPageRoute(builder: (_) => const CommunitySelectionScreen()),
+                  MaterialPageRoute(
+                      builder: (_) => const CommunitySelectionScreen()),
                 );
               },
             ),
@@ -132,31 +178,62 @@ class _HomeScreenTemplateState extends State<HomeScreenTemplate> {
               title: Text('Doctor: Send Message', style: GoogleFonts.lato()),
               onTap: () {
                 Navigator.of(context).push(
-                  MaterialPageRoute(builder: (_) => const CommunityPostScreen()),
+                  MaterialPageRoute(
+                      builder: (_) => const CommunityPostScreen()),
                 );
               },
             ),
             ListTile(
               leading: const Icon(Icons.message_rounded),
-              title: Text('Patient: Receive Message', style: GoogleFonts.lato()),
+              title:
+              Text('Patient: Receive Message', style: GoogleFonts.lato()),
               onTap: () {
                 Navigator.of(context).push(
-                  MaterialPageRoute(builder: (_) => const CommunityFeedScreen()),
+                  MaterialPageRoute(
+                      builder: (_) => const CommunityFeedScreen()),
                 );
               },
             ),
             ListTile(
               leading: const Icon(Icons.mark_chat_read_outlined),
-              title: Text('Chat', style: GoogleFonts.lato()),
+              title: Row(
+                children: [
+                  Text('Chat', style: GoogleFonts.lato()),
+                  if (_totalUnread > 0) ...[
+                    const SizedBox(width: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: Colors.teal,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Text(
+                        '$_totalUnread',
+                        style: GoogleFonts.lato(
+                          color: Colors.white,
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
               onTap: () {
-                Navigator.of(context).push(
-                  MaterialPageRoute(builder: (_) => const ChatPartnerSelectionScreen()),
-                );
+                Navigator.of(context)
+                    .push(
+                  MaterialPageRoute(
+                    builder: (_) => const ChatPartnerSelectionScreen(),
+                  ),
+                )
+                    .then((_) => _loadUnreadCount());
               },
             ),
             ListTile(
               leading: const Icon(Icons.sos_rounded),
-              title: Text('Emergency GEO Localisation', style: GoogleFonts.lato()),
+              title: Text('Emergency GEO Localisation',
+                  style: GoogleFonts.lato()),
               onTap: () {
                 Navigator.of(context).push(
                   MaterialPageRoute(builder: (_) => const SOSScreen()),
@@ -250,7 +327,8 @@ class _HomeScreenTemplateState extends State<HomeScreenTemplate> {
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.black,
                 padding: const EdgeInsets.symmetric(vertical: 16),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10)),
               ),
             ),
           ],
