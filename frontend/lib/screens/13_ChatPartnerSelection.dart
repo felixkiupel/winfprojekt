@@ -54,24 +54,23 @@ class _ChatPartnerSelectionScreenState
       if (token == null) throw Exception('Kein Token gefunden');
 
       // 1) Profil abrufen, um Rolle zu kennen
-      final profileRes = await http.get(
-        Uri.parse('$_baseUrl/patient/me'),
-        headers: {'Authorization': 'Bearer $token'},
-      ).timeout(const Duration(seconds: 10));
+      final profileRes = await http
+          .get(Uri.parse('$_baseUrl/patient/me'),
+          headers: {'Authorization': 'Bearer $token'})
+          .timeout(const Duration(seconds: 10));
       if (profileRes.statusCode != 200) {
         throw Exception('Profil konnte nicht geladen werden');
       }
       final profile = json.decode(profileRes.body) as Map<String, dynamic>;
       _currentRole = profile['role'] as String?;
 
-      // 2) Bisherige Chat-Partner laden inkl. unreadCount
-      final recentRes = await http.get(
-        Uri.parse('$_baseUrl/dm/partners'),
-        headers: {
-          'Authorization': 'Bearer $token',
-          'Accept': 'application/json',
-        },
-      ).timeout(const Duration(seconds: 10));
+      // 2) Bisherige Chat-Partner laden
+      final recentRes = await http
+          .get(Uri.parse('$_baseUrl/dm/partners'), headers: {
+        'Authorization': 'Bearer $token',
+        'Accept': 'application/json',
+      })
+          .timeout(const Duration(seconds: 10));
       if (recentRes.statusCode == 200) {
         final list = json.decode(recentRes.body) as List<dynamic>;
         _recentPartners = list.map((e) {
@@ -84,20 +83,19 @@ class _ChatPartnerSelectionScreenState
         }).toList();
       }
 
-      // 3) Alle Gegenrollen laden (Patienten oder Ärzte) und bereits gechattete entfernen
-      final endpoint = (_currentRole == 'doctor')
-          ? '/patient/patients'
-          : '/patient/doctors';
-      final allRes = await http.get(
-        Uri.parse('$_baseUrl$endpoint'),
-        headers: {
-          'Authorization': 'Bearer $token',
-          'Accept': 'application/json',
-        },
-      ).timeout(const Duration(seconds: 10));
+      // 3) Alle Gegenrollen laden und gechattete entfernen
+      final endpoint =
+      (_currentRole == 'doctor') ? '/patient/patients' : '/patient/doctors';
+      final allRes = await http
+          .get(Uri.parse('$_baseUrl$endpoint'), headers: {
+        'Authorization': 'Bearer $token',
+        'Accept': 'application/json',
+      })
+          .timeout(const Duration(seconds: 10));
       if (allRes.statusCode == 200) {
         final list = json.decode(allRes.body) as List<dynamic>;
-        _partners = list.map((e) {
+        _partners = list
+            .map((e) {
           final m = e as Map<String, dynamic>;
           return {
             'id': m['med_id'] as String,
@@ -106,10 +104,21 @@ class _ChatPartnerSelectionScreenState
         })
             .where((p) => !_recentPartners.any((r) => r['id'] == p['id']))
             .toList();
+
+        // -----------------------------------------------------------------
+        // FIX 1: prüfen, ob die aktuelle Auswahl noch existiert – sonst nullen
+        // -----------------------------------------------------------------
+        if (!_partners.any((p) => p['id'] == _selectedPartnerId)) {
+          _selectedPartnerId = null;
+          _selectedPartnerName = null;
+        }
       }
     } catch (e) {
       debugPrint('Fehler beim Laden der Partner: $e');
     } finally {
+      // --------------------------------------------------------
+      // FIX 1 (Fortsetzung): State-Update inklusive _isLoading
+      // --------------------------------------------------------
       setState(() => _isLoading = false);
     }
   }

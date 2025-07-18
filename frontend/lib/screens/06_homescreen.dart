@@ -9,8 +9,12 @@ import 'package:http/http.dart' as http;
 import 'package:timeago/timeago.dart' as timeago;
 
 import '02b_login.dart';
+import '07_SosScreen.dart';
+import '08_MedicalDocumentScreen.dart';
 import '10_CommunityMenu.dart';
+import '11_SendMessageCommunity.dart';
 import '12_ReceiveMessageCommunity.dart';
+import '13_ChatPartnerSelection.dart';
 import 'fragments/a_sidebar.dart';
 
 class HomeScreenTemplate extends StatefulWidget {
@@ -26,6 +30,7 @@ class _HomeScreenTemplateState extends State<HomeScreenTemplate> {
 
   String? _firstName;
   bool _hasCommunities = true;
+  bool _isLoadingMessages = true;
   List<MessageItem> _communityMessages = [];
 
   late final String _baseUrl = (() {
@@ -57,13 +62,11 @@ class _HomeScreenTemplateState extends State<HomeScreenTemplate> {
     try {
       final token = await _storage.read(key: 'jwt');
       if (token == null) return;
-      final res = await http.get(
-        Uri.parse('$_baseUrl/patient/me'),
-        headers: {
-          'Authorization': 'Bearer $token',
-          'Accept': 'application/json',
-        },
-      ).timeout(const Duration(seconds: 10));
+      final res = await http
+          .get(Uri.parse('$_baseUrl/patient/me'), headers: {
+        'Authorization': 'Bearer $token',
+        'Accept': 'application/json',
+      }).timeout(const Duration(seconds: 10));
       if (res.statusCode == 200) {
         final data = json.decode(res.body) as Map<String, dynamic>;
         setState(() => _firstName = data['firstname'] as String?);
@@ -75,13 +78,11 @@ class _HomeScreenTemplateState extends State<HomeScreenTemplate> {
     try {
       final token = await _storage.read(key: 'jwt');
       if (token == null) return;
-      final res = await http.get(
-        Uri.parse('$_baseUrl/dm/partners'),
-        headers: {
-          'Authorization': 'Bearer $token',
-          'Accept': 'application/json',
-        },
-      ).timeout(const Duration(seconds: 10));
+      final res = await http
+          .get(Uri.parse('$_baseUrl/dm/partners'), headers: {
+        'Authorization': 'Bearer $token',
+        'Accept': 'application/json',
+      }).timeout(const Duration(seconds: 10));
       if (res.statusCode == 200) {
         final list = json.decode(res.body) as List<dynamic>;
         int sum = 0;
@@ -94,9 +95,18 @@ class _HomeScreenTemplateState extends State<HomeScreenTemplate> {
   }
 
   Future<void> _loadCommunitiesAndMessages() async {
+    setState(() {
+      _isLoadingMessages = true;
+      _hasCommunities = true;
+      _communityMessages = [];
+    });
     final token = await _storage.read(key: 'jwt');
-    if (token == null) return;
+    if (token == null) {
+      setState(() => _isLoadingMessages = false);
+      return;
+    }
 
+    // 1) Eigene Communities holen
     final commRes = await http.get(
       Uri.parse('$_baseUrl/communitys/me'),
       headers: {
@@ -106,15 +116,22 @@ class _HomeScreenTemplateState extends State<HomeScreenTemplate> {
     ).timeout(const Duration(seconds: 10));
 
     if (commRes.statusCode != 200) {
-      setState(() => _hasCommunities = false);
+      setState(() {
+        _hasCommunities = false;
+        _isLoadingMessages = false;
+      });
       return;
     }
     final comms = (json.decode(commRes.body) as List).cast<String>();
     if (comms.isEmpty) {
-      setState(() => _hasCommunities = false);
+      setState(() {
+        _hasCommunities = false;
+        _isLoadingMessages = false;
+      });
       return;
     }
 
+    // 2) Letzte 3 Nachrichten holen
     final uri = Uri.parse(
       '$_baseUrl/messages?communities=${Uri.encodeComponent(comms.join(','))}',
     );
@@ -131,8 +148,14 @@ class _HomeScreenTemplateState extends State<HomeScreenTemplate> {
       final fetched = list
           .map((e) => MessageItem.fromJson(e as Map<String, dynamic>))
           .toList();
-      setState(() => _communityMessages = fetched.take(3).toList());
+      setState(() {
+        _communityMessages = fetched.take(3).toList();
+      });
     }
+
+    setState(() {
+      _isLoadingMessages = false;
+    });
   }
 
   Future<void> _logout() async {
@@ -152,6 +175,43 @@ class _HomeScreenTemplateState extends State<HomeScreenTemplate> {
     final welcomeText = _firstName != null
         ? 'Welcome back, $_firstName!'
         : 'Welcome back!';
+
+    Widget activitiesSection;
+    if (!_hasCommunities) {
+      activitiesSection = Center(
+        child: Text(
+          'Du bist noch in keiner Community.',
+          style: GoogleFonts.lato(fontSize: 16, color: Colors.black54),
+        ),
+      );
+    } else if (_isLoadingMessages) {
+      activitiesSection = const Center(child: CircularProgressIndicator());
+    } else if (_communityMessages.isEmpty) {
+      activitiesSection = Center(
+        child: Text(
+          'Aktuell sind keine Nachrichten vorhanden.',
+          style: GoogleFonts.lato(fontSize: 16, color: Colors.black54),
+        ),
+      );
+    } else {
+      activitiesSection = Column(
+        children: _communityMessages.map((m) {
+          return _ActivityTile(
+            title: m.title,
+            subtitle: _formatRelativeTime(m.date),
+            icon: Icons.forum,
+            onTap: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => const CommunityFeedScreen(),
+                ),
+              );
+            },
+          );
+        }).toList(),
+      );
+    }
+
     return Scaffold(
       onDrawerChanged: (isOpen) {
         if (isOpen) _loadUnreadCount();
@@ -193,25 +253,71 @@ class _HomeScreenTemplateState extends State<HomeScreenTemplate> {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 _FeatureCard(
-                  icon: Icons.medical_services,
-                  label: 'Community Moderation',
-                  color: Colors.green.shade600,
-                  onTap: () {},
+                  icon: Icons.group_add_outlined,
+                  label: 'Moderation',
+                  color: const Color(0xFFA8D5BA),
+                  onTap: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(builder: (_) => const CommunityPostScreen()),
+                    );
+                  },
                 ),
                 _FeatureCard(
-                  icon: Icons.analytics,
-                  label: 'Statistics',
-                  color: Colors.blue.shade600,
-                  onTap: () {},
+                  icon: Icons.people_alt_outlined,
+                  label: 'Chat',
+                  color: const Color(0xFF70AD98),
+                  onTap: () {
+                    Navigator.of(context)
+                        .push(MaterialPageRoute(builder: (_) => const ChatPartnerSelectionScreen()))
+                        .then((_) => _loadUnreadCount());
+                  },
                 ),
                 _FeatureCard(
-                  icon: Icons.notifications,
-                  label: 'Notifications',
-                  color: Colors.red.shade600,
-                  onTap: () {},
+                  icon: Icons.sos_rounded,
+                  label: 'Emergency',
+                  color: const Color(0xFF2C6E49),
+                  onTap: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(builder: (_) => const SOSScreen()),
+                    );
+                  },
                 ),
               ],
             ),
+            const SizedBox(height: 24),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                _FeatureCard(
+                  icon: Icons.file_copy_outlined,
+                  label: 'Documents',
+                  color: const Color(0xFFA8D5BA),
+                  onTap: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(builder: (_) => const PatientDocumentsScreen()),
+                    );
+                  },
+                ),
+                _FeatureCard(
+                  icon: Icons.settings,
+                  label: 'Settings',
+                  color: const Color(0xFF70AD98),
+                  onTap: () {
+                  },
+                ),
+                _FeatureCard(
+                  icon: Icons.groups,
+                  label: 'Communities',
+                  color: const Color(0xFF2C6E49),
+                  onTap: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(builder: (_) => const CommunitySelectionScreen()),
+                    );
+                  },
+                ),
+              ],
+            ),
+
             const SizedBox(height: 32),
             Text(
               'Recent Community Activities',
@@ -221,39 +327,18 @@ class _HomeScreenTemplateState extends State<HomeScreenTemplate> {
               ),
             ),
             const SizedBox(height: 16),
-            if (!_hasCommunities)
-              Center(
-                child: Text(
-                  'Du bist noch in keiner Community.',
-                  style:
-                  GoogleFonts.lato(fontSize: 16, color: Colors.black54),
-                ),
-              )
-            else if (_communityMessages.isEmpty)
-              const Center(child: CircularProgressIndicator())
-            else
-              ..._communityMessages.map(
-                    (m) => _ActivityTile(
-                  title: m.title,
-                  subtitle: _formatRelativeTime(m.date),
-                  icon: Icons.forum,
-                  onTap: () {
-                    Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (_) => const CommunityFeedScreen(),
-                      ),
-                    );
-                  },
-                ),
-              ),
+            activitiesSection,
             const SizedBox(height: 32),
             OutlinedButton.icon(
-              onPressed: () {
-                Navigator.of(context).push(
+              onPressed: () async {
+                // CommunityMenuScreen öffnen und nach Rückkehr reloaden
+                await Navigator.of(context).push(
                   MaterialPageRoute(
                     builder: (_) => const CommunitySelectionScreen(),
                   ),
                 );
+                // Nach dem Verlassen der Auswahl: Communities und Messages neu holen
+                _loadCommunitiesAndMessages();
               },
               icon: const Icon(Icons.add),
               label: Text(
@@ -292,37 +377,35 @@ class _FeatureCard extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
-    return Expanded(
-      child: GestureDetector(
-        onTap: onTap,
-        child: Container(
-          height: 100,
-          margin: const EdgeInsets.symmetric(horizontal: 8),
-          decoration: BoxDecoration(
-            color: color,
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(icon, size: 40, color: Colors.white),
-              const SizedBox(height: 8),
-              Text(
-                label,
-                style: GoogleFonts.lato(
-                  color: Colors.white,
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                ),
-                textAlign: TextAlign.center,
+  Widget build(BuildContext context) => Expanded(
+    child: GestureDetector(
+      onTap: onTap,
+      child: Container(
+        height: 100,
+        margin: const EdgeInsets.symmetric(horizontal: 8),
+        decoration: BoxDecoration(
+          color: color,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(icon, size: 40, color: Colors.white),
+            const SizedBox(height: 8),
+            Text(
+              label,
+              style: GoogleFonts.lato(
+                color: Colors.white,
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
               ),
-            ],
-          ),
+              textAlign: TextAlign.center,
+            ),
+          ],
         ),
       ),
-    );
-  }
+    ),
+  );
 }
 
 class _ActivityTile extends StatelessWidget {
@@ -339,20 +422,15 @@ class _ActivityTile extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
-    return ListTile(
-      leading: Icon(icon, color: Colors.black54),
-      title: Text(
-        title,
-        style:
-        GoogleFonts.lato(fontSize: 16, fontWeight: FontWeight.w600),
-      ),
-      subtitle:
-      Text(subtitle, style: GoogleFonts.lato(color: Colors.black54)),
-      trailing: const Icon(Icons.arrow_forward_ios, size: 16),
-      contentPadding:
-      const EdgeInsets.symmetric(horizontal: 0, vertical: 8),
-      onTap: onTap,
-    );
-  }
+  Widget build(BuildContext context) => ListTile(
+    leading: Icon(icon, color: Colors.black54),
+    title: Text(
+      title,
+      style: GoogleFonts.lato(fontSize: 16, fontWeight: FontWeight.w600),
+    ),
+    subtitle: Text(subtitle, style: GoogleFonts.lato(color: Colors.black54)),
+    trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+    contentPadding: const EdgeInsets.symmetric(horizontal: 0, vertical: 8),
+    onTap: onTap,
+  );
 }

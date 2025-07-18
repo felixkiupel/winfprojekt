@@ -23,7 +23,7 @@ def seed_users():
         {
             "email": "anna.schmidt@hospital.com",
             "password": hashed_pw,
-            "firstname": "Anna",
+            "firstname": "Dr. Anna",
             "lastname": "Schmidt",
             "med_id": "D001",
             "role": "doctor",
@@ -31,7 +31,7 @@ def seed_users():
         {
             "email": "peter.weber@hospital.com",
             "password": hashed_pw,
-            "firstname": "Peter",
+            "firstname": "Dr. Peter",
             "lastname": "Weber",
             "med_id": "D002",
             "role": "doctor",
@@ -39,7 +39,7 @@ def seed_users():
         {
             "email": "laura.fischer@hospital.com",
             "password": hashed_pw,
-            "firstname": "Laura",
+            "firstname": "Dr. Laura",
             "lastname": "Fischer",
             "med_id": "D003",
             "role": "doctor",
