@@ -3,7 +3,6 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:http/http.dart' as http;
 
 // BASE-URL Definition
@@ -33,7 +32,7 @@ class _LogScreenState extends State<LogScreen> {
 
   Future<void> _fetchLogs() async {
     try {
-      final resp = await http.get(Uri.parse('$_baseUrl/messages'));
+      final resp = await http.get(Uri.parse('$_baseUrl/com_messages'));
       if (resp.statusCode == 200) {
         final List<dynamic> data = jsonDecode(resp.body);
         setState(() {

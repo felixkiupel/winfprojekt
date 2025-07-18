@@ -1,10 +1,13 @@
-from fastapi import FastAPI, status
+from fastapi import FastAPI, status, APIRouter
 from pydantic import BaseModel, Field
 from typing import List
 from datetime import datetime
-from bson import ObjectId
 
 from backend.db import com_messages_collection
+
+
+# Router für Direct Messages
+router = APIRouter()
 
 # Eingangs-Schema für PUT /messages
 class MessageIn(BaseModel):
@@ -21,10 +24,8 @@ class MessageOut(BaseModel):
     title: str
     message: str
 
-app = FastAPI(title="Community-Messaging API")
-
-@app.put(
-    "/messages",
+@router.put(
+    "/com_messages",
     status_code=status.HTTP_201_CREATED,
     response_model=MessageOut,
 )
@@ -39,8 +40,8 @@ async def log_message(msg: MessageIn):
     doc["_id"] = str(result.inserted_id)
     return doc
 
-@app.get(
-    "/messages",
+@router.get(
+    "/com_messages",
     response_model=List[MessageOut],
 )
 async def get_messages():

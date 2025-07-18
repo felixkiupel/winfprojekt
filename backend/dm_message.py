@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Response
 from pydantic import BaseModel, Field
 from typing import List
 from datetime import datetime
@@ -18,12 +18,13 @@ class ChatMessageIn(BaseModel):
     date: datetime
     text: str
 
-# Ausgangsmodell: wandelt _id → id um
+# Ausgangsmodell: wandelt _id → id um und liefert read-Status
 class ChatMessageOut(BaseModel):
     id: str = Field(..., alias="_id")
     date: datetime
     senderId: str
     text: str
+    read: bool
 
 @router.get("/{partner_id}/messages", response_model=List[ChatMessageOut])
 def get_dm_messages(
@@ -31,11 +32,10 @@ def get_dm_messages(
         current_user: dict = Depends(get_current_patient),
 ):
     """
-    Liefert alle Nachrichten zwischen eingeloggtem User und partner_id, sortiert nach Datum aufsteigend.
+    Liefert alle Nachrichten zwischen eingeloggtem User und partner_id,
+    sortiert nach Datum aufsteigend, inklusive Read/Unread-Status.
     """
-    # eigene ID aus Token
     my_id = current_user.get("med_id") or str(current_user.get("_id"))
-    # Query für beidseitige DM
     cursor = dm_collection.find({
         "$or": [
             {"senderId": my_id, "receiverId": partner_id},
@@ -45,12 +45,12 @@ def get_dm_messages(
 
     out = []
     for doc in cursor:
-        doc["_id"] = str(doc.get("_id"))
         out.append({
-            "_id": doc["_id"],
+            "_id": str(doc.get("_id")),
             "date": doc["date"],
             "senderId": doc.get("senderId"),
             "text": doc.get("text"),
+            "read": doc.get("read", False),
         })
     return out
 
@@ -62,6 +62,7 @@ def send_dm_message(
 ):
     """
     Sendet eine neue DM vom eingeloggten User an partner_id.
+    Initial setzt der read-Status auf False.
     """
     my_id = current_user.get("med_id") or str(current_user.get("_id"))
     doc = {
@@ -69,7 +70,27 @@ def send_dm_message(
         "text": msg.text,
         "senderId": my_id,
         "receiverId": partner_id,
+        "read": False,
     }
     result = dm_collection.insert_one(doc)
     doc["_id"] = str(result.inserted_id)
     return doc
+
+@router.patch("/{partner_id}/read", status_code=status.HTTP_204_NO_CONTENT)
+def mark_dm_read(
+        partner_id: str,
+        current_user: dict = Depends(get_current_patient),
+):
+    """
+    Markiert alle ungelesenen Nachrichten von partner_id → eingeloggter User als gelesen.
+    """
+    my_id = current_user.get("med_id") or str(current_user.get("_id"))
+    dm_collection.update_many(
+        {
+            "senderId": partner_id,
+            "receiverId": my_id,
+            "read": False
+        },
+        {"$set": {"read": True}}
+    )
+    return Response(status_code=status.HTTP_204_NO_CONTENT)

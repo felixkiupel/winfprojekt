@@ -1,5 +1,3 @@
-# backend/community.py
-
 from typing import List
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
@@ -7,7 +5,7 @@ from pymongo.errors import DuplicateKeyError
 
 from backend.db import community_collection, patients_collection
 from backend.auth_utils import get_current_patient
-from backend.dm_message import get_dm_messages
+
 
 router = APIRouter(
     prefix="/communitys",

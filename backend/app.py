@@ -19,7 +19,8 @@ from backend.patient import router as patient_router
 
 # Community-Router
 from backend.community import router as community_router
-from backend.dm_message import router as dm_router
+from backend.dm_message import router as dm_message_router
+from backend.com_message import router as com_message_router
 
 
 
@@ -123,7 +124,10 @@ def ping():
 app.include_router(patient_router)
 
 # ---------- DIRECT-MESSAGE ----------
-app.include_router(dm_router)
+app.include_router(dm_message_router)
+
+# ---------- COM-MESSAGE ----------
+app.include_router(com_message_router)
 
 
 
@@ -132,38 +136,3 @@ app.include_router(dm_router)
 # Man kann ihn in community.py auf "/communitys" ändern,
 # damit  Flutter-App nicht umgestellt werden muss.
 app.include_router(community_router)
-
-
-
-# ---------- MESSAGE-ENDPOINTS ----------
-
-@app.put(
-    "/messages",
-    status_code=status.HTTP_201_CREATED,
-    response_model=MessageOut,
-)
-async def log_message(msg: MessageIn):
-    """
-    Loggt eine neue Nachricht (PUT /messages).
-    Body: { date, community, title, message }
-    """
-    doc = msg.dict()
-    result = dm_collection.insert_one(doc)
-    doc["_id"] = str(result.inserted_id)
-    return doc
-
-
-@app.get(
-    "/messages",
-    response_model=List[MessageOut],
-)
-async def get_messages():
-    """
-    Liefert alle geloggten Nachrichten, sortiert nach Datum absteigend.
-    """
-    cursor = dm_collection.find().sort("date", -1)
-    out = []
-    for doc in cursor:
-        doc["_id"] = str(doc["_id"])
-        out.append(doc)
-    return out
