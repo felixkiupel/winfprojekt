@@ -15,6 +15,7 @@ import '10_CommunityMenu.dart';
 import '11_SendMessageCommunity.dart';
 import '12_ReceiveMessageCommunity.dart';
 import '13_ChatPartnerSelection.dart';
+import '15_settings_screen.dart';
 import 'fragments/a_sidebar.dart';
 
 class HomeScreenTemplate extends StatefulWidget {
@@ -180,7 +181,7 @@ class _HomeScreenTemplateState extends State<HomeScreenTemplate> {
     if (!_hasCommunities) {
       activitiesSection = Center(
         child: Text(
-          'Du bist noch in keiner Community.',
+          "You haven't joined a community yet",
           style: GoogleFonts.lato(fontSize: 16, color: Colors.black54),
         ),
       );
@@ -303,6 +304,9 @@ class _HomeScreenTemplateState extends State<HomeScreenTemplate> {
                   label: 'Settings',
                   color: const Color(0xFF70AD98),
                   onTap: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(builder: (_) => SettingsScreen()),
+                    );
                   },
                 ),
                 _FeatureCard(

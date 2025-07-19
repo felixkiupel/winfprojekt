@@ -8,7 +8,6 @@ import 'package:http/http.dart' as http;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 
-import '14_DirectChatScreen.dart'; // ggf. anpassen, falls Pfad anders
 
 /// ----------------------------------------------------------------------------
 /// DirectChatScreen

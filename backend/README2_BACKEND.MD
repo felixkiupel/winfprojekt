@@ -64,8 +64,10 @@ JWT_SECRET=<your_secret_jwt_key>
 Example values for local testing:
 
 ```env
+API_URL=http://10.0.2.2:8000
 MONGO_URI=mongodb+srv://dbUser:dbUserPassword@medapp.tdtpszy.mongodb.net/MedApp?retryWrites=true&w=majority
 JWT_SECRET=RyiYP7ng6iZIFtNGKww5EWyqcs6BdmKaegxbWjsCIWPGqspiXEJRvaRkOsHYw3G74QbtAhnW7Hq97qWSEtYt8g
+FERNET_KEY=Sv9N47veh-ZiMIBq_fHcKNd7YqEogJzyFR1xIkFXiKw=
 ```
 
 ---

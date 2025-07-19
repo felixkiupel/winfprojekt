@@ -2,9 +2,12 @@
 Dieses Skript legt beispielhaft 3 Ärzt:innen und 3 Patient:innen an.
 Jeder Nutzer bekommt das Passwort "111111" (gehasht) und eine E-Mail-Adresse.
 """
-
+from dotenv import load_dotenv
+load_dotenv()
+from backend.crypto_utils import encrypt_field
 from backend.db import patients_collection
 from backend.auth_utils import pwd_context
+
 
 def seed_users():
     # IDs, die wir neu seeden wollen
@@ -23,24 +26,24 @@ def seed_users():
         {
             "email": "anna.schmidt@hospital.com",
             "password": hashed_pw,
-            "firstname": "Dr. Anna",
-            "lastname": "Schmidt",
+            "firstname": encrypt_field("Dr. Anna"),
+            "lastname": encrypt_field("Schmidt"),
             "med_id": "D001",
             "role": "doctor",
         },
         {
             "email": "peter.weber@hospital.com",
             "password": hashed_pw,
-            "firstname": "Dr. Peter",
-            "lastname": "Weber",
+            "firstname": encrypt_field( "Dr. Peter"),
+            "lastname": encrypt_field("Citizen"),
             "med_id": "D002",
             "role": "doctor",
         },
         {
             "email": "laura.fischer@hospital.com",
             "password": hashed_pw,
-            "firstname": "Dr. Laura",
-            "lastname": "Fischer",
+            "firstname": encrypt_field( "Dr. Laura"),
+            "lastname": encrypt_field("Fischer"),
             "med_id": "D003",
             "role": "doctor",
         },
@@ -48,24 +51,24 @@ def seed_users():
         {
             "email": "max.mueller@example.com",
             "password": hashed_pw,
-            "firstname": "Max",
-            "lastname": "Müller",
+            "firstname": encrypt_field( "Max"),
+            "lastname": encrypt_field("Müller"),
             "med_id": "P001",
             "role": "patient",
         },
         {
             "email": "erika.mustermann@example.com",
             "password": hashed_pw,
-            "firstname": "Erika",
-            "lastname": "Mustermann",
+            "firstname": encrypt_field( "Erica"),
+            "lastname": encrypt_field("Weiler"),
             "med_id": "P002",
             "role": "patient",
         },
         {
             "email": "hans.schneider@example.com",
             "password": hashed_pw,
-            "firstname": "Hans",
-            "lastname": "Schneider",
+            "firstname": encrypt_field( "Hans"),
+            "lastname": encrypt_field("Schneider"),
             "med_id": "P003",
             "role": "patient",
         },

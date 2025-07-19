@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:medapp/screens/15_DataManagementInformationScreen.dart';
+import 'package:medapp/screens/15_settings_screen.dart';
 
 import '../07_SosScreen.dart';
 import '../08_MedicalDocumentScreen.dart';
@@ -57,7 +58,9 @@ class Sidebar extends StatelessWidget {
             leading: const Icon(Icons.settings),
             title: Text('Settings', style: GoogleFonts.lato()),
             onTap: () {
-              // Navigator.push(...)
+              Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => const SettingsScreen()),
+              );
             },
           ),
           ListTile(
